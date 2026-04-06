@@ -1,0 +1,28 @@
+/* Global styles */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Roboto, sans-serif;
+  background: #f5f5f5;
+}
+
+.page-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Source badge colours */
+.badge-alfresco {
+  background-color: #1565c0 !important;
+  color: white !important;
+}
+
+.badge-nuxeo {
+  background-color: #c62828 !important;
+  color: white !important;
+}
+
+/* Utility */
+.spacer { flex: 1 1 auto; }

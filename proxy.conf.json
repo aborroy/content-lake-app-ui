@@ -1,0 +1,24 @@
+{
+  "/api/rag/chat/stream": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true,
+    "proxyTimeout": 300000,
+    "timeout": 300000
+  },
+  "/api/rag": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/alfresco": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/nuxeo": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  }
+}
