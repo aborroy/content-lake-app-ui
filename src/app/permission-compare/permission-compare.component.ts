@@ -1,8 +1,8 @@
-import { Component, Input, OnChanges, Output, EventEmitter } from '@angular/core';
 import { HttpHeaders } from '@angular/common/http';
+import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.service';
-import { RagService, RagResult, ContentSourceType } from '../services/rag.service';
+import { ContentSourceType, RagResult, RagService } from '../services/rag.service';
 
 export interface CompareResult {
   username: string;
@@ -11,158 +11,326 @@ export interface CompareResult {
   results: RagResult[];
 }
 
-/**
- * Permission comparison panel.
- *
- * Lets the user authenticate as a second identity and run the current query again,
- * surfacing the difference caused by permission filtering. This is the core
- * "permission-aware" demo feature: same query, different users → different results.
- */
 @Component({
   selector: 'app-permission-compare',
   template: `
-    <mat-expansion-panel [expanded]="autoExpand">
+    <mat-expansion-panel [expanded]="autoExpand" class="compare-panel">
       <mat-expansion-panel-header>
         <mat-panel-title>
-          <mat-icon style="margin-right:8px">compare_arrows</mat-icon>
-          Permission Comparison
+          <mat-icon>compare_arrows</mat-icon>
+          Permission comparison
         </mat-panel-title>
         <mat-panel-description>
-          Run the same query as a different user to verify permission filtering
+          Re-run this query as another user and inspect the difference.
         </mat-panel-description>
       </mat-expansion-panel-header>
 
-      <!-- Credential form -->
-      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:8px 0 4px">
+      <div class="compare-shell">
+        <div class="compare-form">
+          <mat-button-toggle-group [(ngModel)]="compareSource" class="compare-toggle">
+            <mat-button-toggle value="alfresco">
+              <span class="toggle-label toggle-label-alfresco">
+                <mat-icon>storage</mat-icon>
+                Alfresco
+              </span>
+            </mat-button-toggle>
+            <mat-button-toggle value="nuxeo">
+              <span class="toggle-label toggle-label-nuxeo">
+                <mat-icon>folder_open</mat-icon>
+                Nuxeo
+              </span>
+            </mat-button-toggle>
+          </mat-button-toggle-group>
 
-        <mat-button-toggle-group [(ngModel)]="compareSource" style="align-self:center;height:40px">
-          <mat-button-toggle value="alfresco">
-            <mat-icon style="font-size:15px;margin-right:4px;color:#1565c0">storage</mat-icon>
-            Alfresco
-          </mat-button-toggle>
-          <mat-button-toggle value="nuxeo">
-            <mat-icon style="font-size:15px;margin-right:4px;color:#c62828">folder_open</mat-icon>
-            Nuxeo
-          </mat-button-toggle>
-        </mat-button-toggle-group>
+          <mat-form-field appearance="outline" class="compare-field">
+            <mat-label>Username</mat-label>
+            <input matInput [(ngModel)]="compareUser" [disabled]="comparing" />
+          </mat-form-field>
 
-        <mat-form-field appearance="outline" style="flex:1;min-width:120px;margin-bottom:-1.25em">
-          <mat-label>Username</mat-label>
-          <input matInput [(ngModel)]="compareUser" [disabled]="comparing" />
-        </mat-form-field>
+          <mat-form-field appearance="outline" class="compare-field">
+            <mat-label>Password</mat-label>
+            <input matInput
+                   type="password"
+                   [(ngModel)]="comparePass"
+                   [disabled]="comparing"
+                   (keyup.enter)="runComparison()" />
+          </mat-form-field>
 
-        <mat-form-field appearance="outline" style="flex:1;min-width:120px;margin-bottom:-1.25em">
-          <mat-label>Password</mat-label>
-          <input matInput type="password" [(ngModel)]="comparePass"
-                 [disabled]="comparing" (keyup.enter)="runComparison()" />
-        </mat-form-field>
+          <button mat-raised-button color="primary"
+                  type="button"
+                  class="compare-action"
+                  [disabled]="!canCompare"
+                  (click)="runComparison()">
+            <mat-spinner *ngIf="comparing" diameter="16"></mat-spinner>
+            <span>{{ comparing ? 'Running...' : 'Compare access' }}</span>
+          </button>
+        </div>
 
-        <button mat-raised-button color="accent"
-                [disabled]="!canCompare"
-                (click)="runComparison()"
-                style="align-self:center;height:40px">
-          <mat-spinner *ngIf="comparing" diameter="16"
-                       style="display:inline-block;margin-right:6px"></mat-spinner>
-          {{ comparing ? 'Running…' : 'Compare' }}
-        </button>
-      </div>
+        <p *ngIf="authError" class="auth-error">
+          <mat-icon>error</mat-icon>
+          {{ authError }}
+        </p>
 
-      <p *ngIf="authError" style="color:#c62828;font-size:12px;margin:4px 0 0">
-        <mat-icon style="font-size:14px;vertical-align:middle">error</mat-icon>
-        {{ authError }}
-      </p>
-
-      <!-- Comparison result -->
-      <div *ngIf="compareResult" style="margin-top:16px">
-        <mat-divider style="margin-bottom:16px"></mat-divider>
-
-        <!-- Score card -->
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
-
-          <div class="score-card your-card">
-            <div class="score-label">
-              <mat-icon style="font-size:14px">person</mat-icon>
-              Your results
-              <span class="user-tag" [class.alfresco-tag]="mainSource==='alfresco'"
-                    [class.nuxeo-tag]="mainSource==='nuxeo'">
-                {{ mainUsername }}
+        <div *ngIf="compareResult" class="compare-results">
+          <div class="score-grid">
+            <div class="score-card score-card-main" [ngClass]="scoreClass(mainSource)">
+              <span class="score-label">Current view</span>
+              <strong>{{ mainCount }}</strong>
+              <span class="user-tag" [ngClass]="mainSource === 'alfresco' ? 'user-tag-alfresco' : mainSource === 'nuxeo' ? 'user-tag-nuxeo' : ''">
+                {{ mainUsername || 'Current session' }}
               </span>
             </div>
-            <div class="score-count">{{ mainCount }}</div>
-          </div>
 
-          <div class="score-card compare-card" [class.diff-detected]="diffDetected">
-            <div class="score-label">
-              <mat-icon style="font-size:14px">person_outline</mat-icon>
-              Comparison results
-              <span class="user-tag" [class.alfresco-tag]="compareResult.source==='alfresco'"
-                    [class.nuxeo-tag]="compareResult.source==='nuxeo'">
+            <div class="score-card score-card-compare" [ngClass]="scoreClass(compareResult.source)">
+              <span class="score-label">Comparison view</span>
+              <strong>{{ compareResult.count }}</strong>
+              <span class="user-tag" [ngClass]="compareResult.source === 'alfresco' ? 'user-tag-alfresco' : 'user-tag-nuxeo'">
                 {{ compareResult.username }}
               </span>
             </div>
-            <div class="score-count">{{ compareResult.count }}</div>
+
+            <div class="verdict-box" [class.verdict-equal]="!diffDetected">
+              <mat-icon>{{ diffDetected ? 'shield' : 'check_circle' }}</mat-icon>
+              <div>
+                <strong>{{ diffDetected ? 'Permission filtering detected' : 'Same visible result count' }}</strong>
+                <p>
+                  {{ diffDetected
+                    ? (compareResult.username + ' sees ' + (compareResult.count - mainCount) + ' more document(s) for this query.')
+                    : 'Both identities see the same number of results for this search.' }}
+                </p>
+              </div>
+            </div>
           </div>
 
-          <!-- Verdict -->
-          <div *ngIf="diffDetected" class="verdict-box">
-            <mat-icon color="warn">security</mat-icon>
-            <span>
-              <strong>Permission filtering active</strong> —
-              {{ compareResult.username }} sees {{ compareResult.count - mainCount }} more document(s).
-            </span>
-          </div>
-          <div *ngIf="!diffDetected && compareResult" class="verdict-box verdict-equal">
-            <mat-icon style="color:#2e7d32">check_circle</mat-icon>
-            <span>Same result count — permissions are equivalent for this query.</span>
-          </div>
+          <ng-container *ngIf="extraResults.length > 0">
+            <div class="result-section">
+              <div class="result-section-header">
+                <span class="eyebrow">More visible to comparison user</span>
+                <h3>{{ compareResult.username }} can access these documents and you cannot.</h3>
+              </div>
+              <app-results [results]="extraResults" (select)="openLink($event)"></app-results>
+            </div>
+          </ng-container>
+
+          <ng-container *ngIf="hiddenResults.length > 0">
+            <div class="result-section">
+              <div class="result-section-header">
+                <span class="eyebrow">More visible to current user</span>
+                <h3>You can access these documents and {{ compareResult.username }} cannot.</h3>
+              </div>
+              <app-results [results]="hiddenResults" (select)="openLink($event)"></app-results>
+            </div>
+          </ng-container>
         </div>
-
-        <!-- Extra results visible to compare user but not to you -->
-        <ng-container *ngIf="extraResults.length > 0">
-          <p style="font-size:13px;color:#616161;margin:0 0 8px">
-            Documents visible to <strong>{{ compareResult.username }}</strong> but not to you:
-          </p>
-          <app-results [results]="extraResults" (select)="openLink($event)"></app-results>
-        </ng-container>
-
-        <!-- Hidden results: visible to you but not to compare user -->
-        <ng-container *ngIf="hiddenResults.length > 0">
-          <p style="font-size:13px;color:#616161;margin:8px 0">
-            Documents visible to <strong>you</strong> but not to
-            <strong>{{ compareResult.username }}</strong>:
-          </p>
-          <app-results [results]="hiddenResults" (select)="openLink($event)"></app-results>
-        </ng-container>
-
       </div>
     </mat-expansion-panel>
   `,
   styles: [`
+    .compare-panel {
+      border-radius: 24px !important;
+      overflow: hidden;
+      border: 1px solid var(--cl-border);
+      box-shadow: var(--cl-shadow-soft);
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .compare-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding-top: 4px;
+    }
+
+    .compare-form {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .compare-toggle {
+      height: 46px;
+      border-radius: 16px;
+      background: rgba(244, 247, 244, 0.88);
+    }
+
+    .toggle-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+    }
+
+    .toggle-label mat-icon {
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+    }
+
+    .toggle-label-alfresco {
+      color: var(--source-alfresco-strong);
+    }
+
+    .toggle-label-nuxeo {
+      color: var(--source-nuxeo-strong);
+    }
+
+    .compare-field {
+      min-width: 0;
+      margin-bottom: -1.25em;
+    }
+
+    .compare-action {
+      min-height: 46px;
+      border-radius: 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .auth-error {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: var(--cl-danger);
+      font-size: 13px;
+    }
+
+    .compare-results {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(180px, 240px)) minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
     .score-card {
-      padding: 12px 20px; border-radius: 8px; border: 1px solid #e0e0e0;
-      min-width: 140px; background: #fafafa;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--cl-border);
+      background: rgba(244, 247, 244, 0.72);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
-    .your-card { border-color: #1565c0; }
-    .compare-card { border-color: #9e9e9e; }
-    .compare-card.diff-detected { border-color: #e65100; background: #fff3e0; }
+
+    .score-card-alfresco {
+      border-color: rgba(118, 184, 42, 0.24);
+      background: linear-gradient(180deg, rgba(239, 248, 223, 0.86), rgba(255, 255, 255, 0.86));
+    }
+
+    .score-card-nuxeo {
+      border-color: rgba(47, 109, 246, 0.18);
+      background: linear-gradient(180deg, rgba(235, 241, 255, 0.9), rgba(255, 255, 255, 0.86));
+    }
+
     .score-label {
-      font-size: 11px; color: #757575; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+      color: var(--cl-text-soft);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
     }
-    .score-count { font-size: 32px; font-weight: 700; color: #212121; line-height: 1.2; }
+
+    .score-card strong {
+      font-size: 40px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+      color: var(--cl-text);
+    }
+
     .user-tag {
-      font-size: 10px; border-radius: 8px; padding: 1px 6px;
+      display: inline-flex;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cl-text-muted);
+      background: rgba(24, 49, 38, 0.06);
     }
-    .alfresco-tag { background: #1565c0; color: white; }
-    .nuxeo-tag    { background: #c62828; color: white; }
+
+    .user-tag-alfresco {
+      background: var(--source-alfresco-soft);
+      color: var(--source-alfresco-strong);
+    }
+
+    .user-tag-nuxeo {
+      background: var(--source-nuxeo-soft);
+      color: var(--source-nuxeo-strong);
+    }
+
     .verdict-box {
-      display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-      border-radius: 8px; background: #fff3e0; font-size: 13px; align-self: center;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 248, 238, 0.9);
+      border: 1px solid rgba(184, 107, 23, 0.18);
+      color: var(--cl-warning);
     }
-    .verdict-equal { background: #e8f5e9; }
+
+    .verdict-box mat-icon {
+      flex-shrink: 0;
+    }
+
+    .verdict-box strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--cl-text);
+    }
+
+    .verdict-box p {
+      margin: 0;
+      color: var(--cl-text-muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .verdict-equal {
+      background: rgba(236, 248, 236, 0.92);
+      border-color: rgba(60, 139, 59, 0.18);
+      color: var(--cl-success);
+    }
+
+    .result-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .result-section-header h3 {
+      margin: 4px 0 0;
+      font-size: 22px;
+      letter-spacing: -0.04em;
+      color: var(--cl-text);
+    }
+
+    .eyebrow {
+      display: inline-block;
+      color: var(--cl-text-soft);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 1080px) {
+      .compare-form,
+      .score-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   `]
 })
 export class PermissionCompareComponent implements OnChanges {
-
   @Input() query = '';
   @Input() sourceFilter: ContentSourceType | '' = '';
   @Input() mainResults: RagResult[] = [];
@@ -181,9 +349,7 @@ export class PermissionCompareComponent implements OnChanges {
   constructor(private auth: AuthService, private rag: RagService) {}
 
   ngOnChanges(): void {
-    // Auto-expand when main results are 0 and a query has been run
     this.autoExpand = this.mainResults.length === 0 && this.query.length > 0;
-    // Clear stale comparison when query changes
     this.compareResult = null;
     this.authError = '';
   }
@@ -198,14 +364,12 @@ export class PermissionCompareComponent implements OnChanges {
     return this.compareResult !== null && this.compareResult.count !== this.mainCount;
   }
 
-  /** Results the compare user can see that the main user cannot (ranked by compare). */
   get extraResults(): RagResult[] {
     if (!this.compareResult) return [];
     const mainIds = new Set(this.mainResults.map(r => r.openInSourceUrl ?? r.title));
     return this.compareResult.results.filter(r => !mainIds.has(r.openInSourceUrl ?? r.title));
   }
 
-  /** Results the main user can see that the compare user cannot. */
   get hiddenResults(): RagResult[] {
     if (!this.compareResult) return [];
     const compareIds = new Set(this.compareResult.results.map(r => r.openInSourceUrl ?? r.title));
@@ -259,13 +423,17 @@ export class PermissionCompareComponent implements OnChanges {
     if (url) window.open(url, '_blank');
   }
 
+  scoreClass(source: ContentSourceType | '' | undefined): string {
+    if (source === 'alfresco') return 'score-card-alfresco';
+    if (source === 'nuxeo') return 'score-card-nuxeo';
+    return '';
+  }
+
   private buildHeaders(session: { username: string; ticket?: string; credentials?: string }): HttpHeaders {
     let headers = new HttpHeaders();
     if ('ticket' in session && session.ticket) {
-      // Alfresco ticket
       headers = headers.set('Authorization', `Basic ${btoa(session.ticket + ':')}`);
     } else if ('credentials' in session && session.credentials) {
-      // Nuxeo basic
       headers = headers.set('Authorization', `Basic ${session.credentials}`);
     }
     return headers;

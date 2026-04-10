@@ -1,57 +1,163 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { RagService, RagHealth, RagComponentHealth } from '../services/rag.service';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { RagHealth, RagService } from '../services/rag.service';
 
 @Component({
   selector: 'app-status-panel',
   template: `
-    <mat-card style="margin-bottom:16px">
-      <mat-card-header>
-        <mat-icon mat-card-avatar [style.color]="overallColor">
-          {{ overallIcon }}
-        </mat-icon>
-        <mat-card-title style="font-size:14px">RAG Service Status</mat-card-title>
-        <mat-card-subtitle>
-          <span [style.color]="overallColor" style="font-weight:500">{{ overallLabel }}</span>
-        </mat-card-subtitle>
-      </mat-card-header>
+    <mat-card class="status-card">
+      <div class="status-shell">
+        <div class="status-header">
+          <div class="status-summary">
+            <div class="status-icon" [style.color]="overallColor">
+              <mat-icon>{{ overallIcon }}</mat-icon>
+            </div>
+            <div>
+              <span class="status-label">RAG service status</span>
+              <h2>{{ overallLabel }}</h2>
+            </div>
+          </div>
 
-      <mat-card-content style="padding:8px 16px 4px">
-        <div *ngIf="loading" style="display:flex;align-items:center;gap:8px;color:#9e9e9e;font-size:13px">
-          <mat-spinner diameter="16"></mat-spinner> Checking…
+          <button mat-icon-button matTooltip="Refresh" (click)="refresh()" [disabled]="loading">
+            <mat-icon>refresh</mat-icon>
+          </button>
         </div>
-        <div *ngIf="error && !loading" style="color:#c62828;font-size:13px">
-          <mat-icon style="font-size:14px;vertical-align:middle">error_outline</mat-icon>
-          Cannot reach RAG service
+
+        <div *ngIf="loading" class="status-loading">
+          <mat-spinner diameter="18"></mat-spinner>
+          Checking current service health...
         </div>
-        <div *ngIf="health && !loading" style="display:flex;gap:16px;flex-wrap:wrap">
+
+        <div *ngIf="error && !loading" class="status-error">
+          <mat-icon>error_outline</mat-icon>
+          Cannot reach the RAG service.
+        </div>
+
+        <div *ngIf="health && !loading" class="status-grid">
           <div class="status-item" *ngFor="let c of components">
-            <mat-icon class="status-dot" [style.color]="statusColor(c.status)">
-              {{ c.status === 'UP' ? 'check_circle' : 'cancel' }}
-            </mat-icon>
-            <span class="status-label">{{ c.label }}</span>
+            <span class="status-dot" [style.background]="statusColor(c.status)"></span>
+            <div>
+              <strong>{{ c.label }}</strong>
+              <span>{{ c.status }}</span>
+            </div>
             <span *ngIf="c.detail" class="status-detail">{{ c.detail }}</span>
           </div>
         </div>
-      </mat-card-content>
-
-      <mat-card-actions align="end" style="padding:0 8px 4px">
-        <button mat-icon-button matTooltip="Refresh" (click)="refresh()" [disabled]="loading">
-          <mat-icon style="font-size:18px">refresh</mat-icon>
-        </button>
-      </mat-card-actions>
+      </div>
     </mat-card>
   `,
   styles: [`
-    .status-item {
-      display: flex; align-items: center; gap: 4px; font-size: 12px;
+    .status-card {
+      overflow: hidden;
     }
-    .status-dot { font-size: 14px; height: 14px; width: 14px; }
-    .status-label { font-weight: 500; }
-    .status-detail { color: #9e9e9e; }
+
+    .status-shell {
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .status-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-summary {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(24, 49, 38, 0.06);
+    }
+
+    .status-label {
+      display: inline-block;
+      margin-bottom: 4px;
+      color: var(--cl-text-soft);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.04em;
+    }
+
+    .status-loading,
+    .status-error {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--cl-text-muted);
+      font-size: 13px;
+    }
+
+    .status-error {
+      color: var(--cl-danger);
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid var(--cl-border);
+      background: rgba(244, 247, 244, 0.7);
+    }
+
+    .status-item strong,
+    .status-item span {
+      display: block;
+    }
+
+    .status-item strong {
+      color: var(--cl-text);
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .status-item span {
+      color: var(--cl-text-soft);
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 6px rgba(24, 49, 38, 0.04);
+    }
+
+    .status-detail {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cl-text-muted) !important;
+    }
   `]
 })
 export class StatusPanelComponent implements OnInit, OnDestroy {
-
   health: RagHealth | null = null;
   loading = false;
   error = false;
@@ -73,14 +179,20 @@ export class StatusPanelComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = false;
     this.rag.getHealth().subscribe({
-      next: h => { this.health = h; this.loading = false; },
-      error: () => { this.error = true; this.loading = false; }
+      next: h => {
+        this.health = h;
+        this.loading = false;
+      },
+      error: () => {
+        this.error = true;
+        this.loading = false;
+      }
     });
   }
 
   get overallLabel(): string {
     if (this.error) return 'Unreachable';
-    return this.health?.status ?? '—';
+    return this.health?.status ?? '-';
   }
 
   get overallIcon(): string {
@@ -89,18 +201,18 @@ export class StatusPanelComponent implements OnInit, OnDestroy {
   }
 
   get overallColor(): string {
-    if (this.error) return '#c62828';
-    if (!this.health) return '#9e9e9e';
-    return this.health.status === 'UP' ? '#2e7d32' : '#e65100';
+    if (this.error) return 'var(--cl-danger)';
+    if (!this.health) return 'var(--cl-text-soft)';
+    return this.health.status === 'UP' ? 'var(--cl-success)' : 'var(--cl-warning)';
   }
 
   statusColor(status: string | undefined): string {
-    return status === 'UP' ? '#2e7d32' : '#c62828';
+    return status === 'UP' ? 'var(--cl-success)' : 'var(--cl-danger)';
   }
 
   get components(): { label: string; status: string; detail?: string }[] {
     if (!this.health) return [];
-    const items = [];
+    const items: { label: string; status: string; detail?: string }[] = [];
     if (this.health.embedding) {
       items.push({
         label: 'Embedding',

@@ -1,379 +1,724 @@
-import { Component, OnInit, AfterViewChecked, ViewChild, ElementRef } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { AuthService } from '../services/auth.service';
-import {
-  RagService, RagPromptOptions, RagPromptResponse,
-  MergedDocument, PromptSource, ChatMessage, ContentSourceType
-} from '../services/rag.service';
 import { ChatSessionService, ChatSessionSummary } from '../services/chat-session.service';
+import {
+  ChatMessage,
+  ContentSourceType,
+  MergedDocument,
+  PromptSource,
+  RagPromptOptions,
+  RagPromptResponse,
+  RagService
+} from '../services/rag.service';
 
 let _nextId = 0;
 
 @Component({
   selector: 'app-chat',
   template: `
-    <div class="chat-layout">
+    <div class="page-container chat-page">
+      <div class="chat-layout surface-card">
+        <aside class="chat-sidebar">
+          <div class="sidebar-header">
+            <div>
+              <span class="eyebrow">Conversations</span>
+              <h2>Session memory</h2>
+            </div>
+            <button mat-stroked-button type="button" class="sidebar-action" (click)="newConversation()" [disabled]="thinking">
+              <mat-icon>add</mat-icon>
+              New
+            </button>
+          </div>
 
-      <!-- Session sidebar -->
-      <aside class="chat-sidebar">
-        <div class="sidebar-header">
-          <span class="sidebar-title">Conversations</span>
-          <button mat-stroked-button type="button"
-                  (click)="newConversation()" [disabled]="thinking"
-                  style="font-size:12px;line-height:28px;padding:0 10px">
-            <mat-icon style="font-size:16px;vertical-align:middle">add</mat-icon> New
-          </button>
-        </div>
+          <div class="sidebar-legend">
+            <span class="source-badge source-badge-alfresco">
+              <mat-icon>storage</mat-icon>
+              Alfresco
+            </span>
+            <span class="source-badge source-badge-nuxeo">
+              <mat-icon>folder_open</mat-icon>
+              Nuxeo
+            </span>
+          </div>
 
-        <div class="session-list">
-          <div *ngFor="let s of sessionSummaries; trackBy: trackSession"
-               class="session-item"
-               [class.active]="s.sessionId === activeSessionId"
-               (click)="openConversation(s.sessionId)">
-            <div class="session-title">{{ s.title }}</div>
-            <div class="session-meta">
-              {{ s.updatedAt | date:'short' }} · {{ s.messageCount }} msg
+          <div class="session-list">
+            <button *ngFor="let s of sessionSummaries; trackBy: trackSession"
+                    type="button"
+                    class="session-item"
+                    [class.active]="s.sessionId === activeSessionId"
+                    (click)="openConversation(s.sessionId)">
+              <span class="session-title">{{ s.title }}</span>
+              <span class="session-meta">{{ s.updatedAt | date:'short' }} · {{ s.messageCount }} msg</span>
+            </button>
+          </div>
+        </aside>
+
+        <section class="chat-main">
+          <div class="chat-toolbar">
+            <div class="toolbar-copy">
+              <span class="eyebrow">RAG assistant</span>
+              <h1>Ask across both repositories with explicit source provenance.</h1>
+            </div>
+
+            <div class="toolbar-controls">
+              <span *ngIf="!anyLoggedIn" class="toolbar-warning">
+                <mat-icon>warning</mat-icon>
+                Not logged in. <a routerLink="/login">Connect a repository</a>.
+              </span>
+
+              <span *ngIf="anyLoggedIn" class="toolbar-status">
+                <mat-icon>lock</mat-icon>
+                Session-aware retrieval enabled
+              </span>
+
+              <mat-button-toggle-group [(ngModel)]="selectedSourceType"
+                                       [disabled]="thinking"
+                                       class="source-toggle">
+                <mat-button-toggle value="">All</mat-button-toggle>
+                <mat-button-toggle value="alfresco"
+                                   [disabled]="!alfrescoLoggedIn"
+                                   [matTooltip]="alfrescoLoggedIn ? 'Alfresco only' : 'Log in to Alfresco first'">
+                  <span class="toggle-label toggle-label-alfresco">
+                    <mat-icon>storage</mat-icon>
+                    Alfresco
+                  </span>
+                </mat-button-toggle>
+                <mat-button-toggle value="nuxeo"
+                                   [disabled]="!nuxeoLoggedIn"
+                                   [matTooltip]="nuxeoLoggedIn ? 'Nuxeo only' : 'Log in to Nuxeo first'">
+                  <span class="toggle-label toggle-label-nuxeo">
+                    <mat-icon>folder_open</mat-icon>
+                    Nuxeo
+                  </span>
+                </mat-button-toggle>
+              </mat-button-toggle-group>
+
+              <button mat-stroked-button type="button"
+                      class="sidebar-action"
+                      (click)="newConversation()"
+                      [disabled]="thinking">
+                <mat-icon>restart_alt</mat-icon>
+                Reset
+              </button>
             </div>
           </div>
-        </div>
-      </aside>
 
-      <!-- Main chat panel -->
-      <div class="chat-main">
-
-        <!-- Toolbar -->
-        <div class="chat-toolbar">
-          <!-- No-session warning -->
-          <span *ngIf="!anyLoggedIn" style="font-size:12px;color:#e65100;display:flex;align-items:center;gap:4px">
-            <mat-icon style="font-size:15px">warning</mat-icon>
-            Not logged in — <a routerLink="/login">log in first</a>
-          </span>
-
-          <span *ngIf="anyLoggedIn" style="font-size:12px;color:#757575">
-            <mat-icon style="font-size:14px;vertical-align:middle">lock</mat-icon>
-            Session-aware RAG
-          </span>
-
-          <div style="flex:1"></div>
-
-          <mat-button-toggle-group [(ngModel)]="selectedSourceType"
-                                   [disabled]="thinking"
-                                   style="height:32px">
-            <mat-button-toggle value="" style="font-size:12px">All</mat-button-toggle>
-            <mat-button-toggle value="alfresco"
-                               [disabled]="!alfrescoLoggedIn"
-                               [matTooltip]="alfrescoLoggedIn ? 'Alfresco only' : 'Log in to Alfresco first'"
-                               style="font-size:12px">
-              <mat-icon style="font-size:13px;margin-right:3px;color:#1565c0">storage</mat-icon>
-              Alfresco
-            </mat-button-toggle>
-            <mat-button-toggle value="nuxeo"
-                               [disabled]="!nuxeoLoggedIn"
-                               [matTooltip]="nuxeoLoggedIn ? 'Nuxeo only' : 'Log in to Nuxeo first'"
-                               style="font-size:12px">
-              <mat-icon style="font-size:13px;margin-right:3px;color:#c62828">folder_open</mat-icon>
-              Nuxeo
-            </mat-button-toggle>
-          </mat-button-toggle-group>
-
-          <button mat-stroked-button type="button"
-                  (click)="newConversation()" [disabled]="thinking"
-                  style="margin-left:8px;height:32px;font-size:12px;line-height:30px">
-            <mat-icon style="font-size:15px;vertical-align:middle">restart_alt</mat-icon>
-            New conversation
-          </button>
-        </div>
-
-        <!-- Messages area -->
-        <div class="messages-area" #messagesContainer (scroll)="onScroll()">
-
-          <!-- Welcome state -->
-          <div *ngIf="messages.length === 0" class="welcome-state">
-            <mat-icon style="font-size:56px;height:56px;width:56px;color:#9e9e9e">psychology</mat-icon>
-            <h3 style="margin:12px 0 4px;color:#616161">RAG Assistant</h3>
-            <p style="color:#9e9e9e;font-size:14px;max-width:400px;text-align:center">
-              Ask a question about your content lake.
-              Answers are grounded in your indexed documents from Alfresco and Nuxeo.
-            </p>
-          </div>
-
-          <div *ngFor="let msg of messages"
-               class="bubble"
-               [class.bubble-user]="msg.role === 'user'"
-               [class.bubble-assistant]="msg.role === 'assistant'">
-
-            <!-- User bubble -->
-            <div *ngIf="msg.role === 'user'" class="user-text">{{ msg.content }}</div>
-
-            <!-- Assistant bubble -->
-            <div *ngIf="msg.role === 'assistant'" class="assistant-bubble">
-
-              <!-- Loading spinner (no content yet) -->
-              <div *ngIf="msg.loading && !msg.content" class="loading-row">
-                <mat-spinner diameter="18" style="display:inline-block"></mat-spinner>
-                <span style="margin-left:8px;font-size:13px;color:#757575">Thinking…</span>
-              </div>
-
-              <!-- Error -->
-              <div *ngIf="msg.error" class="error-row">
-                <mat-icon style="font-size:16px;color:#c62828">error_outline</mat-icon>
-                <span style="font-size:13px;color:#c62828;margin-left:6px">{{ msg.error }}</span>
-              </div>
-
-              <!-- Answer text -->
-              <div *ngIf="!msg.error && (msg.content || msg.loading)" class="answer-text">
-                {{ msg.content }}<span *ngIf="msg.loading" class="stream-cursor">▋</span>
-              </div>
-
-              <!-- Timing / model metadata -->
-              <div *ngIf="!msg.loading && !msg.error && (msg.model || msg.totalMs)"
-                   class="msg-meta">
-                <span *ngIf="msg.model" class="meta-chip">
-                  <mat-icon style="font-size:12px">smart_toy</mat-icon> {{ msg.model }}
-                </span>
-                <span *ngIf="msg.tokenCount !== undefined" class="meta-chip">
-                  {{ msg.tokenCount }} tokens
-                </span>
-                <span *ngIf="msg.totalMs" class="meta-chip">
-                  {{ msg.totalMs }}ms
-                  <span style="opacity:0.6">
-                    (retrieval {{ msg.searchTimeMs }}ms · gen {{ msg.generationTimeMs }}ms)
+          <div class="messages-area" #messagesContainer (scroll)="onScroll()">
+            <div *ngIf="messages.length === 0" class="welcome-state">
+              <div class="welcome-card">
+                <mat-icon>psychology</mat-icon>
+                <h3>Grounded answers from your indexed content lake</h3>
+                <p>
+                  Ask a question, stream the answer, and expand source evidence below the response.
+                </p>
+                <div class="welcome-badges">
+                  <span class="metric-chip">
+                    <mat-icon>hub</mat-icon>
+                    Cross-source retrieval
                   </span>
-                </span>
+                  <span class="metric-chip">
+                    <mat-icon>description</mat-icon>
+                    Inline citations
+                  </span>
+                </div>
               </div>
+            </div>
 
-              <!-- Sources -->
-              <div *ngIf="!msg.loading && !msg.error && msg.sources && msg.sources.length > 0"
-                   class="sources-section">
-                <button mat-button type="button"
-                        (click)="toggleSources(msg)"
-                        style="font-size:12px;padding:0 6px;height:28px">
-                  <mat-icon style="font-size:15px">
-                    {{ msg['_showSources'] ? 'expand_less' : 'expand_more' }}
-                  </mat-icon>
-                  {{ msg.sources.length }} source{{ msg.sources.length !== 1 ? 's' : '' }}
-                </button>
+            <div *ngFor="let msg of messages"
+                 class="bubble"
+                 [class.bubble-user]="msg.role === 'user'"
+                 [class.bubble-assistant]="msg.role === 'assistant'">
+              <div *ngIf="msg.role === 'user'" class="user-text">{{ msg.content }}</div>
 
-                <div *ngIf="msg['_showSources']" class="sources-list">
-                  <div *ngFor="let src of msg.sources" class="source-item">
-                    <div class="source-header">
-                      <mat-icon style="font-size:15px;flex-shrink:0">insert_drive_file</mat-icon>
-                      <a *ngIf="src.openInSourceUrl"
-                         [href]="src.openInSourceUrl" target="_blank" rel="noopener noreferrer"
-                         class="source-name">{{ src.name }}</a>
-                      <span *ngIf="!src.openInSourceUrl" class="source-name">{{ src.name }}</span>
-                      <span *ngIf="src.sourceType"
-                            class="src-badge"
-                            [class.alfresco-badge]="src.sourceType === 'alfresco'"
-                            [class.nuxeo-badge]="src.sourceType === 'nuxeo'">
-                        {{ src.sourceType }}
-                      </span>
-                    </div>
-                    <div *ngIf="src.path" class="source-path">{{ src.path }}</div>
-                    <div *ngFor="let chunk of src.chunks" class="source-chunk">
-                      {{ chunk.text }}
+              <div *ngIf="msg.role === 'assistant'" class="assistant-bubble">
+                <div *ngIf="msg.loading && !msg.content" class="loading-row">
+                  <mat-spinner diameter="18"></mat-spinner>
+                  <span>Thinking...</span>
+                </div>
+
+                <div *ngIf="msg.error" class="error-row">
+                  <mat-icon>error_outline</mat-icon>
+                  <span>{{ msg.error }}</span>
+                </div>
+
+                <div *ngIf="!msg.error && (msg.content || msg.loading)" class="answer-text">
+                  {{ msg.content }}<span *ngIf="msg.loading" class="stream-cursor">|</span>
+                </div>
+
+                <div *ngIf="!msg.loading && !msg.error && (msg.model || msg.totalMs)" class="msg-meta">
+                  <span *ngIf="msg.model" class="metric-chip">
+                    <mat-icon>smart_toy</mat-icon>
+                    {{ msg.model }}
+                  </span>
+                  <span *ngIf="msg.tokenCount !== undefined" class="metric-chip">
+                    <mat-icon>code</mat-icon>
+                    {{ msg.tokenCount }} tokens
+                  </span>
+                  <span *ngIf="msg.totalMs" class="metric-chip">
+                    <mat-icon>schedule</mat-icon>
+                    {{ msg.totalMs }}ms
+                  </span>
+                </div>
+
+                <div *ngIf="!msg.loading && !msg.error && msg.sources && msg.sources.length > 0" class="sources-section">
+                  <button mat-button type="button" class="sources-toggle" (click)="toggleSources(msg)">
+                    <mat-icon>{{ msg['_showSources'] ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    {{ msg.sources.length }} source{{ msg.sources.length !== 1 ? 's' : '' }}
+                  </button>
+
+                  <div *ngIf="msg['_showSources']" class="sources-list">
+                    <div *ngFor="let src of msg.sources"
+                         class="source-item"
+                         [ngClass]="sourceCardClass(src.sourceType)">
+                      <div class="source-header">
+                        <div class="source-title-group">
+                          <span class="source-icon" [ngClass]="sourceBadgeClass(src.sourceType)">
+                            <mat-icon>{{ sourceIcon(src.sourceType) }}</mat-icon>
+                          </span>
+                          <div>
+                            <a *ngIf="src.openInSourceUrl"
+                               [href]="src.openInSourceUrl"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="source-name">{{ src.name }}</a>
+                            <span *ngIf="!src.openInSourceUrl" class="source-name">{{ src.name }}</span>
+                            <div *ngIf="src.path" class="source-path">{{ src.path }}</div>
+                          </div>
+                        </div>
+
+                        <span *ngIf="src.sourceType"
+                              class="source-badge"
+                              [ngClass]="sourceBadgeClass(src.sourceType)">
+                          <mat-icon>{{ sourceIcon(src.sourceType) }}</mat-icon>
+                          {{ src.sourceType | titlecase }}
+                        </span>
+                      </div>
+
+                      <div *ngFor="let chunk of src.chunks" class="source-chunk">
+                        {{ chunk.text }}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
 
-        </div><!-- /messages-area -->
-
-        <!-- Input row -->
-        <div class="input-row">
-          <mat-form-field appearance="outline"
-                          style="flex:1;margin-bottom:-1.25em">
-            <input matInput
-                   [(ngModel)]="currentQuestion"
-                   (keyup.enter)="ask()"
-                   placeholder="Ask a question about your documents…"
-                   [disabled]="thinking || !anyLoggedIn" />
-          </mat-form-field>
-          <button mat-icon-button color="primary"
-                  [disabled]="!currentQuestion.trim() || thinking || !anyLoggedIn"
-                  (click)="ask()"
-                  matTooltip="Send">
-            <mat-icon>send</mat-icon>
-          </button>
-        </div>
-
-      </div><!-- /chat-main -->
+          <div class="input-row">
+            <mat-form-field appearance="outline" class="question-field">
+              <mat-label>Ask a question about your documents</mat-label>
+              <input matInput
+                     [(ngModel)]="currentQuestion"
+                     (keyup.enter)="ask()"
+                     [disabled]="thinking || !anyLoggedIn" />
+            </mat-form-field>
+            <button mat-raised-button color="primary"
+                    class="send-button"
+                    [disabled]="!currentQuestion.trim() || thinking || !anyLoggedIn"
+                    (click)="ask()">
+              <mat-icon>send</mat-icon>
+              Send
+            </button>
+          </div>
+        </section>
+      </div>
     </div>
   `,
   styles: [`
+    .chat-page {
+      padding-top: 24px;
+    }
+
     .chat-layout {
-      display: flex;
-      height: calc(100vh - 64px);
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      min-height: calc(100vh - 156px);
       overflow: hidden;
     }
 
-    /* Sidebar */
+    .eyebrow {
+      display: inline-block;
+      color: var(--cl-text-soft);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
     .chat-sidebar {
-      width: 220px;
-      min-width: 220px;
-      border-right: 1px solid #e0e0e0;
+      padding: 20px;
+      border-right: 1px solid var(--cl-border);
+      background: linear-gradient(180deg, rgba(244, 247, 244, 0.72), rgba(255, 255, 255, 0.8));
       display: flex;
       flex-direction: column;
-      background: #fafafa;
+      gap: 16px;
     }
+
     .sidebar-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      padding: 12px;
-      border-bottom: 1px solid #e0e0e0;
+      gap: 12px;
     }
-    .sidebar-title { font-size: 13px; font-weight: 600; color: #424242; }
-    .session-list { flex: 1; overflow-y: auto; }
-    .session-item {
-      padding: 10px 12px;
-      cursor: pointer;
-      border-bottom: 1px solid #f0f0f0;
-      transition: background 0.15s;
-    }
-    .session-item:hover { background: #eeeeee; }
-    .session-item.active { background: #e3f2fd; border-left: 3px solid #1565c0; }
-    .session-title { font-size: 12px; font-weight: 500; color: #212121; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .session-meta { font-size: 10px; color: #9e9e9e; margin-top: 2px; }
 
-    /* Main */
-    .chat-main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+    .sidebar-header h2 {
+      margin: 6px 0 0;
+      font-size: 24px;
+      letter-spacing: -0.04em;
     }
-    .chat-toolbar {
+
+    .sidebar-action {
+      border-radius: 14px;
+      min-height: 42px;
+    }
+
+    .sidebar-legend {
       display: flex;
-      align-items: center;
       gap: 8px;
-      padding: 8px 16px;
-      border-bottom: 1px solid #e0e0e0;
-      background: #fff;
       flex-wrap: wrap;
     }
 
-    /* Messages */
+    .session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(24, 49, 38, 0.12) transparent;
+    }
+
+    .session-list::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .session-list::-webkit-scrollbar-thumb {
+      border-radius: 99px;
+      background: rgba(24, 49, 38, 0.12);
+    }
+
+    .session-item {
+      border: 1px solid var(--cl-border);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      padding: 14px 16px;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: 160ms ease;
+      color: var(--cl-text);
+    }
+
+    .session-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(24, 49, 38, 0.08);
+    }
+
+    .session-item.active {
+      border-color: rgba(24, 58, 100, 0.18);
+      background: linear-gradient(135deg, rgba(24, 58, 100, 0.08), rgba(47, 109, 246, 0.08));
+    }
+
+    .session-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .session-meta {
+      color: var(--cl-text-soft);
+      font-size: 11px;
+    }
+
+    .chat-main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: rgba(255, 255, 255, 0.46);
+    }
+
+    .chat-toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      padding: 22px 24px 18px;
+      border-bottom: 1px solid var(--cl-border);
+      background: rgba(255, 255, 255, 0.64);
+    }
+
+    .toolbar-copy h1 {
+      margin: 6px 0 0;
+      font-size: 28px;
+      line-height: 1.08;
+      letter-spacing: -0.05em;
+      max-width: 540px;
+    }
+
+    .toolbar-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .toolbar-warning,
+    .toolbar-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .toolbar-warning {
+      background: rgba(255, 248, 238, 0.92);
+      color: var(--cl-warning);
+    }
+
+    .toolbar-status {
+      background: rgba(236, 248, 236, 0.92);
+      color: var(--cl-success);
+    }
+
+    .source-toggle {
+      height: 44px;
+      border-radius: 16px;
+      background: rgba(244, 247, 244, 0.88);
+    }
+
+    .toggle-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+    }
+
+    .toggle-label mat-icon {
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+    }
+
+    .toggle-label-alfresco {
+      color: var(--source-alfresco-strong);
+    }
+
+    .toggle-label-nuxeo {
+      color: var(--source-nuxeo-strong);
+    }
+
     .messages-area {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 22px 24px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
+      background:
+        radial-gradient(circle at top right, rgba(47, 109, 246, 0.06), transparent 24%),
+        linear-gradient(180deg, rgba(247, 250, 248, 0.56), rgba(244, 247, 244, 0.36));
+      scrollbar-width: thin;
+      scrollbar-color: rgba(24, 49, 38, 0.14) transparent;
     }
+
+    .messages-area::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .messages-area::-webkit-scrollbar-thumb {
+      border-radius: 99px;
+      background: rgba(24, 49, 38, 0.14);
+    }
+
+
     .welcome-state {
       flex: 1;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 40px 16px;
+      min-height: 320px;
     }
 
-    .bubble { max-width: 80%; }
-    .bubble-user { align-self: flex-end; }
-    .bubble-assistant { align-self: flex-start; width: 100%; max-width: 90%; }
+    .welcome-card {
+      max-width: 560px;
+      padding: 30px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--cl-border);
+      box-shadow: var(--cl-shadow-soft);
+      text-align: center;
+    }
+
+    .welcome-card > mat-icon {
+      width: 56px;
+      height: 56px;
+      font-size: 56px;
+      color: var(--cl-text-soft);
+    }
+
+    .welcome-card h3 {
+      margin: 16px 0 10px;
+      font-size: 28px;
+      letter-spacing: -0.05em;
+    }
+
+    .welcome-card p {
+      margin: 0;
+      color: var(--cl-text-muted);
+      line-height: 1.7;
+    }
+
+    .welcome-badges {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .bubble {
+      max-width: min(920px, 88%);
+      display: flex;
+    }
+
+    .bubble-user {
+      align-self: flex-end;
+    }
+
+    .bubble-assistant {
+      align-self: flex-start;
+      width: 100%;
+      max-width: min(980px, 92%);
+    }
 
     .user-text {
-      background: #1565c0;
+      background: linear-gradient(135deg, rgba(24, 58, 100, 0.95), rgba(47, 109, 246, 0.92));
       color: white;
-      padding: 10px 14px;
-      border-radius: 18px 18px 4px 18px;
+      padding: 14px 18px;
+      border-radius: 22px 22px 8px 22px;
       font-size: 14px;
+      line-height: 1.7;
       white-space: pre-wrap;
       word-break: break-word;
+      box-shadow: 0 14px 28px rgba(24, 58, 100, 0.18);
     }
 
     .assistant-bubble {
-      background: #f5f5f5;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px 18px 18px 18px;
-      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid var(--cl-border);
+      border-radius: 8px 22px 22px 22px;
+      padding: 18px;
+      box-shadow: var(--cl-shadow-soft);
     }
 
-    .loading-row { display: flex; align-items: center; }
-    .error-row { display: flex; align-items: center; }
+    .loading-row,
+    .error-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .loading-row {
+      color: var(--cl-text-muted);
+    }
+
+    .error-row {
+      color: var(--cl-danger);
+    }
 
     .answer-text {
-      font-size: 14px;
-      line-height: 1.6;
+      font-size: 15px;
+      line-height: 1.8;
       white-space: pre-wrap;
       word-break: break-word;
-      color: #212121;
+      color: var(--cl-text);
     }
+
     .stream-cursor {
       display: inline-block;
-      animation: blink 0.7s step-end infinite;
-      color: #1565c0;
+      color: var(--source-nuxeo);
+      animation: blink 0.8s step-end infinite;
+      margin-left: 2px;
     }
-    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
 
     .msg-meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 8px;
-    }
-    .meta-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      font-size: 10px;
-      color: #757575;
-      background: #eeeeee;
-      border-radius: 10px;
-      padding: 2px 8px;
+      gap: 8px;
+      margin-top: 14px;
     }
 
-    .sources-section { margin-top: 8px; }
-    .sources-list { margin-top: 4px; display: flex; flex-direction: column; gap: 8px; }
-    .source-item {
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      padding: 8px 10px;
-      background: #fff;
-      font-size: 12px;
+    .sources-section {
+      margin-top: 14px;
     }
-    .source-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .source-name { font-weight: 500; color: #1565c0; }
-    .source-path { color: #9e9e9e; font-size: 11px; margin-top: 2px; }
-    .source-chunk {
-      margin-top: 6px;
-      padding: 6px 8px;
-      background: #f5f5f5;
-      border-left: 3px solid #e0e0e0;
-      border-radius: 0 4px 4px 0;
+
+    .sources-toggle {
+      padding: 0 6px;
+      min-height: 34px;
+      border-radius: 12px;
+      color: var(--cl-primary);
+      font-weight: 700;
+    }
+
+    .sources-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .source-item {
+      padding: 16px;
+      border-radius: 20px;
+      border: 1px solid var(--cl-border);
+      background: rgba(247, 250, 248, 0.92);
+    }
+
+    .source-item.source-item-alfresco {
+      border-color: rgba(118, 184, 42, 0.18);
+      background: linear-gradient(180deg, rgba(239, 248, 223, 0.72), rgba(255, 255, 255, 0.88));
+    }
+
+    .source-item.source-item-nuxeo {
+      border-color: rgba(47, 109, 246, 0.16);
+      background: linear-gradient(180deg, rgba(235, 241, 255, 0.76), rgba(255, 255, 255, 0.88));
+    }
+
+    .source-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .source-title-group {
+      display: flex;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .source-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      background: rgba(24, 49, 38, 0.06);
+      color: var(--cl-primary);
+      flex-shrink: 0;
+    }
+
+    .source-name {
+      display: inline-block;
+      color: var(--cl-primary);
+      font-weight: 700;
+      text-decoration: none;
+      margin-bottom: 4px;
+    }
+
+    .source-name:hover {
+      text-decoration: underline;
+    }
+
+    .source-path {
+      color: var(--cl-text-soft);
       font-size: 12px;
-      color: #424242;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .source-chunk {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.78);
+      border-left: 4px solid rgba(24, 58, 100, 0.16);
+      color: var(--cl-text);
+      font-size: 13px;
+      line-height: 1.7;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
-    .src-badge {
-      font-size: 10px;
-      border-radius: 8px;
-      padding: 1px 6px;
-      font-weight: 500;
+    .source-item-alfresco .source-chunk {
+      border-left-color: rgba(118, 184, 42, 0.45);
     }
-    .alfresco-badge { background: #e3f2fd; color: #1565c0; }
-    .nuxeo-badge    { background: #ffebee; color: #c62828; }
 
-    /* Input row */
+    .source-item-nuxeo .source-chunk {
+      border-left-color: rgba(47, 109, 246, 0.35);
+    }
+
     .input-row {
       display: flex;
-      gap: 8px;
       align-items: center;
-      padding: 8px 16px 8px;
-      border-top: 1px solid #e0e0e0;
-      background: #fff;
+      gap: 12px;
+      padding: 18px 24px 22px;
+      border-top: 1px solid var(--cl-border);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .question-field {
+      flex: 1;
+      margin-bottom: -1.25em;
+    }
+
+    .send-button {
+      min-height: 50px;
+      min-width: 132px;
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    @media (max-width: 1040px) {
+      .chat-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .chat-sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--cl-border);
+      }
+
+      .bubble,
+      .bubble-assistant {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .toolbar-copy h1 {
+        font-size: 24px;
+      }
+
+      .input-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .send-button {
+        width: 100%;
+      }
     }
   `]
 })
 export class ChatComponent implements OnInit, AfterViewChecked {
-
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef;
 
   messages: ChatMessage[] = [];
@@ -407,9 +752,9 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  get anyLoggedIn(): boolean      { return this.auth.isAnyLoggedIn(); }
+  get anyLoggedIn(): boolean { return this.auth.isAnyLoggedIn(); }
   get alfrescoLoggedIn(): boolean { return this.auth.isAlfrescoLoggedIn(); }
-  get nuxeoLoggedIn(): boolean    { return this.auth.isNuxeoLoggedIn(); }
+  get nuxeoLoggedIn(): boolean { return this.auth.isNuxeoLoggedIn(); }
 
   ask(): void {
     const q = this.currentQuestion.trim();
@@ -503,9 +848,30 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
   trackSession(_i: number, s: ChatSessionSummary): string { return s.sessionId; }
 
+  sourceIcon(source: ContentSourceType | undefined): string {
+    if (source === 'alfresco') return 'storage';
+    if (source === 'nuxeo') return 'folder_open';
+    return 'description';
+  }
+
+  sourceBadgeClass(source: ContentSourceType | undefined): string {
+    if (source === 'alfresco') return 'source-badge-alfresco';
+    if (source === 'nuxeo') return 'source-badge-nuxeo';
+    return '';
+  }
+
+  sourceCardClass(source: ContentSourceType | undefined): string {
+    if (source === 'alfresco') return 'source-item-alfresco';
+    if (source === 'nuxeo') return 'source-item-nuxeo';
+    return '';
+  }
+
   private fallbackToPrompt(
-    question: string, sessionId: string, isFirstTurn: boolean,
-    assistantMsg: ChatMessage, opts: RagPromptOptions
+    question: string,
+    sessionId: string,
+    isFirstTurn: boolean,
+    assistantMsg: ChatMessage,
+    opts: RagPromptOptions
   ): void {
     this.rag.prompt(question, { ...opts, sessionId, resetSession: isFirstTurn }).subscribe({
       next: response => {

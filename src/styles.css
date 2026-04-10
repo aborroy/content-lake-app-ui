@@ -1,28 +1,176 @@
-/* Global styles */
-* { box-sizing: border-box; }
+/* Global design tokens */
+:root {
+  --cl-font: "Inter", "Avenir Next", "Segoe UI Variable", "Segoe UI", "Helvetica Neue", sans-serif;
+  --cl-bg: #f4f7f4;
+  --cl-bg-soft: #eef4f0;
+  --cl-surface: rgba(255, 255, 255, 0.9);
+  --cl-surface-strong: #ffffff;
+  --cl-border: rgba(26, 47, 34, 0.1);
+  --cl-text: #183126;
+  --cl-text-muted: #5e7266;
+  --cl-text-soft: #647b68;
+  --cl-primary: #183a64;
+  --cl-success: #3c8b3b;
+  --cl-warning: #b86b17;
+  --cl-danger: #ba3a3a;
+  --cl-shadow: 0 18px 42px rgba(24, 49, 38, 0.1);
+  --cl-shadow-soft: 0 10px 24px rgba(24, 49, 38, 0.08);
+  --source-alfresco: #76b82a;
+  --source-alfresco-strong: #4f7e1f;
+  --source-alfresco-soft: #eff8df;
+  --source-nuxeo: #2f6df6;
+  --source-nuxeo-strong: #234fb4;
+  --source-nuxeo-soft: #ebf1ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
 
 body {
   margin: 0;
-  font-family: Roboto, sans-serif;
-  background: #f5f5f5;
+  font-family: var(--cl-font);
+  color: var(--cl-text);
+  background:
+    radial-gradient(circle at top left, rgba(118, 184, 42, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(47, 109, 246, 0.14), transparent 32%),
+    linear-gradient(180deg, #f7faf8 0%, var(--cl-bg) 52%, #edf3ef 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(24, 49, 38, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24, 49, 38, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 80%);
+}
+
+a {
+  color: var(--cl-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 .page-container {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 32px 20px 48px;
 }
 
-/* Source badge colours */
+.surface-card {
+  background: var(--cl-surface);
+  border: 1px solid var(--cl-border);
+  border-radius: 24px;
+  box-shadow: var(--cl-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.section-heading {
+  margin: 0;
+  font-size: clamp(1.8rem, 2vw, 2.45rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.section-copy {
+  margin: 0;
+  color: var(--cl-text-muted);
+  line-height: 1.65;
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.source-badge mat-icon {
+  font-size: 14px;
+  height: 14px;
+  width: 14px;
+}
+
+.source-badge-alfresco {
+  background: var(--source-alfresco-soft);
+  color: var(--source-alfresco-strong);
+}
+
+.source-badge-nuxeo {
+  background: var(--source-nuxeo-soft);
+  color: var(--source-nuxeo-strong);
+}
+
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--cl-border);
+  color: var(--cl-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.metric-chip mat-icon {
+  font-size: 15px;
+  height: 15px;
+  width: 15px;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
 .badge-alfresco {
-  background-color: #1565c0 !important;
+  background-color: var(--source-alfresco) !important;
   color: white !important;
 }
 
 .badge-nuxeo {
-  background-color: #c62828 !important;
+  background-color: var(--source-nuxeo) !important;
   color: white !important;
 }
 
-/* Utility */
-.spacer { flex: 1 1 auto; }
+.mat-mdc-card {
+  /* Use MDC tokens — overridable via CSS custom properties at component scope */
+  --mdc-elevated-card-container-shape: 24px;
+  --mdc-elevated-card-container-color: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--cl-border);
+  /* box-shadow still needs !important because Material applies elevation via host styles */
+  box-shadow: var(--cl-shadow-soft) !important;
+}
+
+.mat-mdc-unelevated-button.mat-primary,
+.mat-mdc-raised-button.mat-primary {
+  --mdc-protected-button-container-color: var(--cl-primary);
+  --mdc-protected-button-label-text-color: #ffffff;
+}
+
+.mat-mdc-button-touch-target {
+  height: 100%;
+}
+
+@media (max-width: 900px) {
+  .page-container {
+    padding: 24px 16px 36px;
+  }
+}
