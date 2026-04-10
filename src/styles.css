@@ -3,7 +3,7 @@
   --cl-font: "Inter", "Avenir Next", "Segoe UI Variable", "Segoe UI", "Helvetica Neue", sans-serif;
   --cl-bg: #f4f7f4;
   --cl-bg-soft: #eef4f0;
-  --cl-surface: rgba(255, 255, 255, 0.9);
+  --cl-surface: #ffffff;
   --cl-surface-strong: #ffffff;
   --cl-border: rgba(26, 47, 34, 0.1);
   --cl-text: #183126;
@@ -36,22 +36,7 @@ body {
   margin: 0;
   font-family: var(--cl-font);
   color: var(--cl-text);
-  background:
-    radial-gradient(circle at top left, rgba(118, 184, 42, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(47, 109, 246, 0.14), transparent 32%),
-    linear-gradient(180deg, #f7faf8 0%, var(--cl-bg) 52%, #edf3ef 100%);
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(24, 49, 38, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(24, 49, 38, 0.035) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 80%);
+  background: var(--cl-bg);
 }
 
 a {
@@ -74,7 +59,6 @@ a:hover {
   border: 1px solid var(--cl-border);
   border-radius: 24px;
   box-shadow: var(--cl-shadow);
-  backdrop-filter: blur(14px);
 }
 
 .section-heading {
@@ -153,7 +137,7 @@ a:hover {
 .mat-mdc-card {
   /* Use MDC tokens — overridable via CSS custom properties at component scope */
   --mdc-elevated-card-container-shape: 24px;
-  --mdc-elevated-card-container-color: rgba(255, 255, 255, 0.92);
+  --mdc-elevated-card-container-color: #ffffff;
   border: 1px solid var(--cl-border);
   /* box-shadow still needs !important because Material applies elevation via host styles */
   box-shadow: var(--cl-shadow-soft) !important;
