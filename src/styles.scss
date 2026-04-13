@@ -1,0 +1,249 @@
+// ---------------------------------------------------------------------------
+// Content Lake — Satori-ready Material 3 theme (Hyland brand palette)
+// ---------------------------------------------------------------------------
+// This file applies Angular Material's M3 theming API with Hyland brand
+// palette and IBM Plex Sans typography. When @hyland/ui packages are added,
+// replace the two blocks below with the Hyland UI integration layer:
+//
+//   @use '@hyland/ui/theming/hy-palette.theme' as hy-palette;
+//   @use 'your-component.theme';
+//   @include hyland-ui-typography();              // typography
+//   @include your-component.theme(hy-palette.$light);
+//
+// References:
+//   Theming guide:   https://hyland.atlassian.net/wiki/spaces/HDF/pages/2250113315
+//   Override policy: https://hyland.atlassian.net/wiki/spaces/HDF/pages/3894444867
+//   Typography:      https://hyland.atlassian.net/wiki/spaces/FE/pages/49348790/Typography+dev
+// ---------------------------------------------------------------------------
+
+@use '@angular/material' as mat;
+
+// -- Material 3 theme definition -------------------------------------------
+// Primary: mat.$blue-palette — tonal seed closest to Hyland navy (#002855).
+// Tertiary: mat.$green-palette — maps to Alfresco's brand green (#78BE20).
+// When @hyland/ui is integrated, replace palettes with hy-palette.$light tokens.
+
+$cl-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$blue-palette,
+    tertiary: mat.$green-palette,
+  ),
+  typography: (
+    brand-family: '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif',
+    plain-family: '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif',
+  ),
+  density: (
+    scale: 0,
+  ),
+));
+
+html {
+  @include mat.all-component-themes($cl-theme);
+}
+
+// -- Hyland brand tokens ----------------------------------------------------
+// Colors derived from Hyland's corporate identity (hyland.com).
+// When @hyland/ui is integrated, these will be replaced by Satori design tokens.
+
+:root {
+  // Core brand palette
+  --hy-navy:       #002855;
+  --hy-navy-dark:  #001B3D;
+  --hy-navy-light: #003D7A;
+  --hy-teal:       #00A3E0;
+  --hy-teal-dark:  #0082B3;
+  --hy-teal-light: #4DC4ED;
+  --hy-teal-soft:  #E5F6FC;
+  --hy-green:      #78BE20;
+  --hy-green-dark: #5A8F18;
+  --hy-green-soft: #EFF8DF;
+  --hy-white:      #FFFFFF;
+  --hy-gray-50:    #F5F7FA;
+  --hy-gray-100:   #EDF0F5;
+  --hy-gray-200:   #D8DEE8;
+  --hy-gray-300:   #B4BDCC;
+  --hy-gray-400:   #8494AA;
+  --hy-gray-500:   #5A6B80;
+  --hy-gray-700:   #2E3A4D;
+  --hy-gray-900:   #1B2A4A;
+
+  // Semantic surface + text
+  --cl-font:           "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --cl-bg:             var(--hy-gray-50);
+  --cl-bg-soft:        var(--hy-gray-100);
+  --cl-surface:        var(--hy-white);
+  --cl-border:         rgba(0, 40, 85, 0.1);
+  --cl-border-strong:  rgba(0, 40, 85, 0.18);
+  --cl-text:           var(--hy-gray-900);
+  --cl-text-muted:     var(--hy-gray-500);
+  --cl-text-soft:      var(--hy-gray-400);
+  --cl-primary:        var(--hy-navy);
+  --cl-accent:         var(--hy-teal);
+  --cl-success:        #2E7D32;
+  --cl-warning:        #C45500;
+  --cl-danger:         #C62828;
+
+  // Elevation — two levels; flat-ish like Hyland enterprise apps
+  --cl-shadow:        0 2px 8px rgba(0, 40, 85, 0.08), 0 1px 3px rgba(0, 40, 85, 0.05);
+  --cl-shadow-soft:   0 1px 4px rgba(0, 40, 85, 0.06);
+  --cl-shadow-raised: 0 6px 24px rgba(0, 40, 85, 0.11), 0 2px 6px rgba(0, 40, 85, 0.06);
+
+  // Source-identity design tokens — used consistently across all views
+  --source-alfresco:        var(--hy-green);
+  --source-alfresco-strong: var(--hy-green-dark);
+  --source-alfresco-soft:   var(--hy-green-soft);
+  --source-nuxeo:           var(--hy-teal);
+  --source-nuxeo-strong:    var(--hy-teal-dark);
+  --source-nuxeo-soft:      var(--hy-teal-soft);
+
+  // -- Hyland 2025 brand mark colours ----------------------------------------
+  // Extracted from the official stacked logo (dark CMYK variant).
+  // Source: https://hyland.highspot.com/spots/67bc83dc929f310d9598cba7
+  --hy-mark-yellow:   #F5C200;
+  --hy-mark-purple:   #6B62B2;
+  --hy-mark-blue:     #4BBDE0;
+  --hy-mark-teal:     #00BBA8;
+
+  // -- Material MDC public token overrides ----------------------------------
+  // Use published MDC tokens only — no internal class selectors.
+  // Policy: https://hyland.atlassian.net/wiki/spaces/HDF/pages/3894444867
+  //
+  // Shape: 12px cards, 6px buttons — enterprise density, less "consumer app"
+  --mdc-elevated-card-container-shape:  12px;
+  --mdc-elevated-card-container-color:  var(--cl-surface);
+  --mdc-outlined-card-container-shape:  12px;
+  --mdc-filled-button-container-shape:  6px;
+  --mdc-protected-button-container-shape: 6px;
+  --mdc-outlined-button-container-shape: 6px;
+  --mdc-text-button-container-shape:    6px;
+  --mat-expansion-container-shape:      12px;
+
+  // Toolbar — white background to match hyland.com chrome.
+  // Nav background colour is overridden per-component in navbar.component.ts.
+  --mat-toolbar-container-color: #ffffff;
+  --mat-toolbar-title-text-font: var(--cl-font);
+}
+
+// -- Global resets and layout -----------------------------------------------
+
+* { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--cl-font);
+  color: var(--cl-text);
+  background: var(--cl-bg);
+}
+
+a { color: var(--hy-teal-dark); text-decoration: none; }
+a:hover { color: var(--hy-navy); text-decoration: underline; }
+
+// -- Shared layout classes --------------------------------------------------
+
+.page-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.surface-card {
+  background: var(--cl-surface);
+  border: 1px solid var(--cl-border);
+  border-radius: 12px;
+  box-shadow: var(--cl-shadow);
+}
+
+.section-heading {
+  margin: 0;
+  font-size: clamp(1.6rem, 2vw, 2.15rem);
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.022em;
+  color: var(--hy-navy);
+}
+
+.section-copy {
+  margin: 0;
+  color: var(--cl-text-muted);
+  line-height: 1.65;
+}
+
+.eyebrow {
+  display: inline-block;
+  color: var(--cl-text-soft);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+// -- Source-identity tags ---------------------------------------------------
+// Rectangular tag shape (not pill) signals repository provenance clearly
+// across search results, chat citations, and connection status indicators.
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.source-badge mat-icon {
+  font-size: 13px;
+  height: 13px;
+  width: 13px;
+}
+
+.source-badge-alfresco {
+  background: var(--source-alfresco-soft);
+  color: var(--source-alfresco-strong);
+  border: 1px solid rgba(90, 143, 24, 0.2);
+}
+
+.source-badge-nuxeo {
+  background: var(--source-nuxeo-soft);
+  color: var(--source-nuxeo-strong);
+  border: 1px solid rgba(0, 130, 179, 0.2);
+}
+
+// -- Metric chips -----------------------------------------------------------
+
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--cl-border);
+  color: var(--cl-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.metric-chip mat-icon {
+  font-size: 14px;
+  height: 14px;
+  width: 14px;
+}
+
+// -- Utilities --------------------------------------------------------------
+
+.spacer { flex: 1 1 auto; }
+
+.badge-alfresco { background-color: var(--source-alfresco); color: white; }
+.badge-nuxeo    { background-color: var(--source-nuxeo); color: white; }
+
+// -- Responsive -------------------------------------------------------------
+
+@media (max-width: 900px) {
+  .page-container { padding: 20px 16px 36px; }
+}

@@ -26,6 +26,7 @@ export interface CompareResult {
       </mat-expansion-panel-header>
 
       <div class="compare-shell">
+
         <div class="compare-form">
           <mat-button-toggle-group [(ngModel)]="compareSource" class="compare-toggle">
             <mat-button-toggle value="alfresco">
@@ -44,7 +45,7 @@ export interface CompareResult {
 
           <mat-form-field appearance="outline" class="compare-field">
             <mat-label>Username</mat-label>
-            <input matInput [(ngModel)]="compareUser" [disabled]="comparing" />
+            <input matInput [(ngModel)]="compareUser" [disabled]="comparing" autocomplete="off" />
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="compare-field">
@@ -53,6 +54,7 @@ export interface CompareResult {
                    type="password"
                    [(ngModel)]="comparePass"
                    [disabled]="comparing"
+                   autocomplete="new-password"
                    (keyup.enter)="runComparison()" />
           </mat-form-field>
 
@@ -62,20 +64,21 @@ export interface CompareResult {
                   [disabled]="!canCompare"
                   (click)="runComparison()">
             <mat-spinner *ngIf="comparing" diameter="16"></mat-spinner>
-            <span>{{ comparing ? 'Running...' : 'Compare access' }}</span>
+            <span>{{ comparing ? 'Running…' : 'Compare access' }}</span>
           </button>
         </div>
 
         <p *ngIf="authError" class="auth-error">
-          <mat-icon>error</mat-icon>
+          <mat-icon>error_outline</mat-icon>
           {{ authError }}
         </p>
 
         <div *ngIf="compareResult" class="compare-results">
           <div class="score-grid">
+
             <div class="score-card score-card-main" [ngClass]="scoreClass(mainSource)">
               <span class="score-label">Current view</span>
-              <strong>{{ mainCount }}</strong>
+              <strong class="score-count">{{ mainCount }}</strong>
               <span class="user-tag" [ngClass]="mainSource === 'alfresco' ? 'user-tag-alfresco' : mainSource === 'nuxeo' ? 'user-tag-nuxeo' : ''">
                 {{ mainUsername || 'Current session' }}
               </span>
@@ -83,7 +86,7 @@ export interface CompareResult {
 
             <div class="score-card score-card-compare" [ngClass]="scoreClass(compareResult.source)">
               <span class="score-label">Comparison view</span>
-              <strong>{{ compareResult.count }}</strong>
+              <strong class="score-count">{{ compareResult.count }}</strong>
               <span class="user-tag" [ngClass]="compareResult.source === 'alfresco' ? 'user-tag-alfresco' : 'user-tag-nuxeo'">
                 {{ compareResult.username }}
               </span>
@@ -100,6 +103,7 @@ export interface CompareResult {
                 </p>
               </div>
             </div>
+
           </div>
 
           <ng-container *ngIf="extraResults.length > 0">
@@ -122,58 +126,56 @@ export interface CompareResult {
             </div>
           </ng-container>
         </div>
+
       </div>
     </mat-expansion-panel>
   `,
   styles: [`
     .compare-panel {
-      border-radius: 24px !important;
+      /* Shape via MDC token in styles.scss — no internal class selectors */
       overflow: hidden;
       border: 1px solid var(--cl-border);
       box-shadow: var(--cl-shadow-soft);
-      background: rgba(255, 255, 255, 0.92);
     }
 
     .compare-shell {
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
       padding-top: 4px;
     }
+
+    /* ---- Form ---- */
 
     .compare-form {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
     }
 
     .compare-toggle {
-      height: 46px;
-      border-radius: 16px;
-      background: rgba(244, 247, 244, 0.88);
+      height: 44px;
+      border-radius: 6px;
+      background: var(--hy-gray-50);
     }
 
     .toggle-label {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-weight: 700;
+      gap: 5px;
+      font-weight: 600;
+      font-size: 12px;
     }
 
     .toggle-label mat-icon {
-      width: 16px;
-      height: 16px;
-      font-size: 16px;
+      width: 15px;
+      height: 15px;
+      font-size: 15px;
     }
 
-    .toggle-label-alfresco {
-      color: var(--source-alfresco-strong);
-    }
-
-    .toggle-label-nuxeo {
-      color: var(--source-nuxeo-strong);
-    }
+    .toggle-label-alfresco { color: var(--source-alfresco-strong); }
+    .toggle-label-nuxeo    { color: var(--source-nuxeo-strong); }
 
     .compare-field {
       min-width: 0;
@@ -181,8 +183,9 @@ export interface CompareResult {
     }
 
     .compare-action {
-      min-height: 46px;
-      border-radius: 15px;
+      min-height: 44px;
+      border-radius: 6px;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -191,135 +194,135 @@ export interface CompareResult {
     .auth-error {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       margin: 0;
       color: var(--cl-danger);
-      font-size: 13px;
+      font-size: 12px;
     }
+
+    .auth-error mat-icon {
+      font-size: 15px;
+      height: 15px;
+      width: 15px;
+    }
+
+    /* ---- Results ---- */
 
     .compare-results {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 18px;
     }
 
     .score-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(180px, 240px)) minmax(0, 1fr);
-      gap: 14px;
+      grid-template-columns: repeat(2, minmax(160px, 220px)) minmax(0, 1fr);
+      gap: 12px;
       align-items: stretch;
     }
 
     .score-card {
-      padding: 18px;
-      border-radius: 20px;
+      padding: 16px;
+      border-radius: 8px;
       border: 1px solid var(--cl-border);
-      background: rgba(244, 247, 244, 0.72);
+      background: var(--hy-gray-50);
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .score-card-alfresco {
-      border-color: rgba(118, 184, 42, 0.24);
-      background: linear-gradient(180deg, rgba(239, 248, 223, 0.86), rgba(255, 255, 255, 0.86));
+      border-color: rgba(120, 190, 32, 0.24);
+      background: var(--source-alfresco-soft);
     }
 
     .score-card-nuxeo {
-      border-color: rgba(47, 109, 246, 0.18);
-      background: linear-gradient(180deg, rgba(235, 241, 255, 0.9), rgba(255, 255, 255, 0.86));
+      border-color: rgba(0, 163, 224, 0.2);
+      background: var(--source-nuxeo-soft);
     }
 
     .score-label {
       color: var(--cl-text-soft);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
     }
 
-    .score-card strong {
-      font-size: 40px;
+    .score-count {
+      font-size: 36px;
+      font-weight: 300;
       line-height: 1;
-      letter-spacing: -0.05em;
+      letter-spacing: -0.04em;
       color: var(--cl-text);
     }
 
     .user-tag {
       display: inline-flex;
       width: fit-content;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
       color: var(--cl-text-muted);
-      background: rgba(24, 49, 38, 0.06);
+      background: rgba(0, 40, 85, 0.06);
     }
 
     .user-tag-alfresco {
-      background: var(--source-alfresco-soft);
+      background: rgba(120, 190, 32, 0.12);
       color: var(--source-alfresco-strong);
     }
 
     .user-tag-nuxeo {
-      background: var(--source-nuxeo-soft);
+      background: rgba(0, 163, 224, 0.1);
       color: var(--source-nuxeo-strong);
     }
 
     .verdict-box {
       display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 18px;
-      border-radius: 20px;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 8px;
       background: rgba(255, 248, 238, 0.9);
-      border: 1px solid rgba(184, 107, 23, 0.18);
+      border: 1px solid rgba(184, 107, 23, 0.2);
       color: var(--cl-warning);
     }
 
-    .verdict-box mat-icon {
-      flex-shrink: 0;
-    }
+    .verdict-box mat-icon { flex-shrink: 0; }
 
     .verdict-box strong {
       display: block;
       margin-bottom: 4px;
       color: var(--cl-text);
+      font-size: 13px;
     }
 
     .verdict-box p {
       margin: 0;
       color: var(--cl-text-muted);
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.6;
     }
 
     .verdict-equal {
-      background: rgba(236, 248, 236, 0.92);
-      border-color: rgba(60, 139, 59, 0.18);
+      background: rgba(46, 125, 50, 0.06);
+      border-color: rgba(46, 125, 50, 0.18);
       color: var(--cl-success);
     }
 
     .result-section {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
 
     .result-section-header h3 {
       margin: 4px 0 0;
-      font-size: 22px;
-      letter-spacing: -0.04em;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
       color: var(--cl-text);
-    }
-
-    .eyebrow {
-      display: inline-block;
-      color: var(--cl-text-soft);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
     }
 
     @media (max-width: 1080px) {

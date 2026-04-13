@@ -8,23 +8,23 @@ import { RagHealth, RagService } from '../services/rag.service';
       <div class="status-shell">
         <div class="status-header">
           <div class="status-summary">
-            <div class="status-icon" [style.color]="overallColor">
-              <mat-icon>{{ overallIcon }}</mat-icon>
+            <div class="status-icon" [style.background]="overallBg">
+              <mat-icon [style.color]="overallColor">{{ overallIcon }}</mat-icon>
             </div>
             <div>
-              <span class="status-label">RAG service status</span>
-              <h2>{{ overallLabel }}</h2>
+              <span class="status-label">RAG service</span>
+              <h2 [style.color]="overallColor">{{ overallLabel }}</h2>
             </div>
           </div>
 
-          <button mat-icon-button matTooltip="Refresh" (click)="refresh()" [disabled]="loading">
+          <button mat-icon-button matTooltip="Refresh" class="refresh-button" (click)="refresh()" [disabled]="loading">
             <mat-icon>refresh</mat-icon>
           </button>
         </div>
 
         <div *ngIf="loading" class="status-loading">
-          <mat-spinner diameter="18"></mat-spinner>
-          Checking current service health...
+          <mat-spinner diameter="16"></mat-spinner>
+          <span>Checking service health…</span>
         </div>
 
         <div *ngIf="error && !loading" class="status-error">
@@ -35,7 +35,7 @@ import { RagHealth, RagService } from '../services/rag.service';
         <div *ngIf="health && !loading" class="status-grid">
           <div class="status-item" *ngFor="let c of components">
             <span class="status-dot" [style.background]="statusColor(c.status)"></span>
-            <div>
+            <div class="status-item-body">
               <strong>{{ c.label }}</strong>
               <span>{{ c.status }}</span>
             </div>
@@ -46,114 +46,123 @@ import { RagHealth, RagService } from '../services/rag.service';
     </mat-card>
   `,
   styles: [`
-    .status-card {
-      overflow: hidden;
-    }
+    .status-card { overflow: hidden; }
 
     .status-shell {
-      padding: 20px 22px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
     .status-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
 
     .status-summary {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
 
     .status-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 16px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: rgba(24, 49, 38, 0.06);
+      flex-shrink: 0;
+    }
+
+    .status-icon mat-icon {
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
     }
 
     .status-label {
       display: inline-block;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       color: var(--cl-text-soft);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
     }
 
     h2 {
       margin: 0;
-      font-size: 22px;
-      letter-spacing: -0.04em;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .refresh-button {
+      color: var(--cl-text-soft);
     }
 
     .status-loading,
     .status-error {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       color: var(--cl-text-muted);
-      font-size: 13px;
+      font-size: 12px;
     }
 
-    .status-error {
-      color: var(--cl-danger);
-    }
+    .status-error { color: var(--cl-danger); }
 
     .status-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
     }
 
     .status-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      border-radius: 18px;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 8px;
       border: 1px solid var(--cl-border);
-      background: rgba(244, 247, 244, 0.7);
+      background: var(--hy-gray-50);
     }
 
-    .status-item strong,
-    .status-item span {
+    .status-item-body strong,
+    .status-item-body span {
       display: block;
+      line-height: 1.25;
     }
 
-    .status-item strong {
+    .status-item-body strong {
       color: var(--cl-text);
-      font-size: 13px;
-      margin-bottom: 2px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 1px;
     }
 
-    .status-item span {
+    .status-item-body span {
       color: var(--cl-text-soft);
-      font-size: 12px;
+      font-size: 11px;
     }
 
     .status-dot {
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       flex-shrink: 0;
-      box-shadow: 0 0 0 6px rgba(24, 49, 38, 0.04);
     }
 
     .status-detail {
       margin-left: auto;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--cl-text-muted) !important;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--cl-text-muted);
+      white-space: nowrap;
     }
   `]
 })
@@ -179,24 +188,18 @@ export class StatusPanelComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = false;
     this.rag.getHealth().subscribe({
-      next: h => {
-        this.health = h;
-        this.loading = false;
-      },
-      error: () => {
-        this.error = true;
-        this.loading = false;
-      }
+      next: h => { this.health = h; this.loading = false; },
+      error: () => { this.error = true; this.loading = false; }
     });
   }
 
   get overallLabel(): string {
     if (this.error) return 'Unreachable';
-    return this.health?.status ?? '-';
+    return this.health?.status ?? '–';
   }
 
   get overallIcon(): string {
-    if (this.error || this.health?.status !== 'UP') return 'warning';
+    if (this.error || this.health?.status !== 'UP') return 'warning_amber';
     return 'check_circle';
   }
 
@@ -204,6 +207,14 @@ export class StatusPanelComponent implements OnInit, OnDestroy {
     if (this.error) return 'var(--cl-danger)';
     if (!this.health) return 'var(--cl-text-soft)';
     return this.health.status === 'UP' ? 'var(--cl-success)' : 'var(--cl-warning)';
+  }
+
+  get overallBg(): string {
+    if (this.error) return 'rgba(198, 40, 40, 0.08)';
+    if (!this.health) return 'var(--hy-gray-100)';
+    return this.health.status === 'UP'
+      ? 'rgba(46, 125, 50, 0.08)'
+      : 'rgba(196, 85, 0, 0.08)';
   }
 
   statusColor(status: string | undefined): string {
@@ -214,19 +225,13 @@ export class StatusPanelComponent implements OnInit, OnDestroy {
     if (!this.health) return [];
     const items: { label: string; status: string; detail?: string }[] = [];
     if (this.health.embedding) {
-      items.push({
-        label: 'Embedding',
-        status: this.health.embedding.status,
-        detail: this.health.embedding.model
-      });
+      items.push({ label: 'Embedding', status: this.health.embedding.status, detail: this.health.embedding.model });
     }
     if (this.health.hxpr) {
       items.push({
         label: 'HXPR',
         status: this.health.hxpr.status,
-        detail: this.health.hxpr.searchTimeMs != null
-          ? `${this.health.hxpr.searchTimeMs}ms`
-          : undefined
+        detail: this.health.hxpr.searchTimeMs != null ? `${this.health.hxpr.searchTimeMs}ms` : undefined
       });
     }
     if (this.health.llm) {

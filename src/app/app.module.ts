@@ -1,9 +1,14 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, HttpClient, HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Routes } from '@angular/router';
+
+// ngx-translate — Satori Devkit standardizes on this library.
+// See: https://hyland.atlassian.net/wiki/spaces/HDF/pages/2319058305/Satori+Devkit
+import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
+import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 
 // Angular Material
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -31,6 +36,10 @@ import { StatusPanelComponent } from './status-panel/status-panel.component';
 import { PermissionCompareComponent } from './permission-compare/permission-compare.component';
 import { AuthHttpInterceptor } from './interceptors/auth.interceptor';
 
+export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
+  return new TranslateHttpLoader(http, './assets/i18n/', '.json');
+}
+
 const routes: Routes = [
   { path: 'login',  component: AuthComponent },
   { path: 'search', component: SearchComponent },
@@ -55,6 +64,14 @@ const routes: Routes = [
     HttpClientModule,
     FormsModule,
     RouterModule.forRoot(routes),
+    TranslateModule.forRoot({
+      defaultLanguage: 'en',
+      loader: {
+        provide: TranslateLoader,
+        useFactory: HttpLoaderFactory,
+        deps: [HttpClient]
+      }
+    }),
     MatToolbarModule,
     MatButtonModule,
     MatButtonToggleModule,

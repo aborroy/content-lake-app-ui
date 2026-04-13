@@ -17,6 +17,7 @@ interface SearchContext {
   selector: 'app-search',
   template: `
     <div class="page-container search-page">
+
       <section class="search-hero surface-card">
         <div class="hero-copy">
           <span class="eyebrow">Search workspace</span>
@@ -47,35 +48,39 @@ interface SearchContext {
         </div>
 
         <div class="hero-panel">
-          <div class="hero-panel-row">
+          <div class="hero-panel-header">
             <span class="hero-panel-label">Repository sessions</span>
-            <span class="hero-panel-value">{{ activeSessionCount }}/2 connected</span>
+            <span class="hero-panel-count">{{ activeSessionCount }}/2</span>
           </div>
-          <div class="hero-session-grid">
+
+          <div class="hero-session-list">
             <div class="hero-session hero-session-alfresco" [class.connected]="alfrescoLoggedIn">
-              <mat-icon>storage</mat-icon>
-              <div>
+              <div class="session-indicator" [class.active]="alfrescoLoggedIn"></div>
+              <mat-icon class="session-src-icon">storage</mat-icon>
+              <div class="session-info">
                 <strong>Alfresco</strong>
                 <span>{{ alfrescoUserLabel }}</span>
               </div>
             </div>
             <div class="hero-session hero-session-nuxeo" [class.connected]="nuxeoLoggedIn">
-              <mat-icon>folder_open</mat-icon>
-              <div>
+              <div class="session-indicator" [class.active]="nuxeoLoggedIn"></div>
+              <mat-icon class="session-src-icon">folder_open</mat-icon>
+              <div class="session-info">
                 <strong>Nuxeo</strong>
                 <span>{{ nuxeoUserLabel }}</span>
               </div>
             </div>
           </div>
+
           <p class="hero-panel-note">
-            Use filters below to narrow to one source, or keep both enabled to compare relevance.
+            Use the source filter below to narrow to one repository, or keep both to compare relevance.
           </p>
         </div>
       </section>
 
       <mat-card *ngIf="!anyLoggedIn" class="warning-banner">
         <mat-card-content>
-          <mat-icon>warning</mat-icon>
+          <mat-icon>warning_amber</mat-icon>
           <span>No active sessions. <a routerLink="/login">Connect Alfresco, Nuxeo, or both</a> to search.</span>
         </mat-card-content>
       </mat-card>
@@ -121,14 +126,14 @@ interface SearchContext {
                   (click)="search()"
                   [disabled]="loading || !query.trim() || !anyLoggedIn">
             <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
-            <span>{{ loading ? 'Searching...' : 'Run search' }}</span>
+            <span>{{ loading ? 'Searching…' : 'Run search' }}</span>
           </button>
         </div>
       </section>
 
       <div *ngIf="ctx" class="context-bar surface-card">
         <div class="context-group">
-          <span class="context-label">Search context</span>
+          <span class="context-label">Context</span>
           <span *ngIf="ctx.alfrescoUser" class="ctx-user ctx-user-alfresco">
             <mat-icon>storage</mat-icon>
             {{ ctx.alfrescoUser }}
@@ -205,161 +210,183 @@ interface SearchContext {
           (compareComplete)="onCompareComplete($event)">
         </app-permission-compare>
       </div>
+
     </div>
   `,
   styles: [`
     .search-page {
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
     }
+
+    /* ---- Hero ---- */
 
     .search-hero {
       display: grid;
-      grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
-      gap: 22px;
+      grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
+      gap: 24px;
       padding: 28px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .search-hero::after {
-      content: "";
-      position: absolute;
-      right: -80px;
-      top: -80px;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(47, 109, 246, 0.12), transparent 68%);
-      pointer-events: none;
-    }
-
-    .eyebrow {
-      display: inline-block;
-      margin-bottom: 12px;
-      color: var(--cl-text-soft);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
     }
 
     .hero-copy {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       min-width: 0;
     }
 
     .hero-metrics {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
+      margin-top: 2px;
     }
 
     .hero-panel {
-      padding: 22px;
-      border-radius: 22px;
-      background: linear-gradient(180deg, rgba(24, 58, 100, 0.05), rgba(255, 255, 255, 0.7));
-      border: 1px solid rgba(24, 58, 100, 0.08);
+      padding: 20px;
+      border-radius: 8px;
+      background: var(--hy-gray-50);
+      border: 1px solid var(--cl-border);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
       align-self: stretch;
     }
 
-    .hero-panel-row {
+    .hero-panel-header {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 18px;
+      gap: 8px;
     }
 
     .hero-panel-label {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 700;
       color: var(--cl-text-soft);
       text-transform: uppercase;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.18em;
     }
 
-    .hero-panel-value {
-      font-size: 18px;
-      font-weight: 700;
+    .hero-panel-count {
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: -0.03em;
       color: var(--cl-text);
     }
 
-    .hero-session-grid {
-      display: grid;
-      gap: 12px;
+    .hero-session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .hero-session {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      border-radius: 18px;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
       border: 1px solid var(--cl-border);
-      background: rgba(255, 255, 255, 0.7);
+      background: var(--cl-surface);
       color: var(--cl-text-soft);
     }
 
     .hero-session.connected {
       color: var(--cl-text);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
     }
 
     .hero-session-alfresco.connected {
-      border-color: rgba(118, 184, 42, 0.3);
-      background: linear-gradient(135deg, rgba(118, 184, 42, 0.14), rgba(255, 255, 255, 0.8));
+      border-color: rgba(120, 190, 32, 0.28);
+      background: linear-gradient(135deg, rgba(120, 190, 32, 0.06), var(--cl-surface));
     }
 
     .hero-session-nuxeo.connected {
-      border-color: rgba(47, 109, 246, 0.3);
-      background: linear-gradient(135deg, rgba(47, 109, 246, 0.14), rgba(255, 255, 255, 0.8));
+      border-color: rgba(0, 163, 224, 0.28);
+      background: linear-gradient(135deg, rgba(0, 163, 224, 0.06), var(--cl-surface));
     }
 
-    .hero-session mat-icon {
-      width: 20px;
-      height: 20px;
-      font-size: 20px;
+    .session-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cl-border-strong);
+      flex-shrink: 0;
     }
 
-    .hero-session strong,
-    .hero-session span {
+    .session-indicator.active {
+      background: var(--cl-success);
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+
+    .hero-session-alfresco .session-indicator.active {
+      background: var(--source-alfresco);
+      box-shadow: 0 0 0 3px rgba(120, 190, 32, 0.15);
+    }
+
+    .hero-session-nuxeo .session-indicator.active {
+      background: var(--source-nuxeo);
+      box-shadow: 0 0 0 3px rgba(0, 163, 224, 0.15);
+    }
+
+    .session-src-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+
+    .connected .session-src-icon { opacity: 1; }
+
+    .hero-session-alfresco.connected .session-src-icon { color: var(--source-alfresco-strong); }
+    .hero-session-nuxeo.connected .session-src-icon { color: var(--source-nuxeo-strong); }
+
+    .session-info strong,
+    .session-info span {
       display: block;
+      line-height: 1.25;
     }
 
-    .hero-session strong {
-      font-size: 14px;
-      margin-bottom: 2px;
+    .session-info strong {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 1px;
     }
 
-    .hero-session span {
-      font-size: 12px;
+    .session-info span {
+      font-size: 11px;
+      color: var(--cl-text-soft);
     }
 
     .hero-panel-note {
-      margin: 16px 0 0;
-      color: var(--cl-text-muted);
-      font-size: 13px;
+      margin: 0;
+      font-size: 12px;
       line-height: 1.6;
+      color: var(--cl-text-muted);
     }
+
+    /* ---- Warning banner ---- */
 
     .warning-banner mat-card-content {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 16px 18px;
+      padding: 14px 16px;
       color: var(--cl-warning);
       background: rgba(255, 248, 238, 0.85);
+      font-size: 13px;
+      font-weight: 500;
     }
 
+    /* ---- Search controls ---- */
+
     .search-controls {
-      padding: 24px 26px 26px;
+      padding: 22px 24px 24px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
     }
 
     .search-header {
@@ -371,22 +398,23 @@ interface SearchContext {
     }
 
     .search-header h2 {
-      margin: 0;
-      font-size: 24px;
-      letter-spacing: -0.04em;
+      margin: 4px 0 0;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
     }
 
     .search-header-note {
       color: var(--cl-text-muted);
       font-size: 13px;
-      max-width: 360px;
+      max-width: 340px;
       line-height: 1.6;
     }
 
     .search-bar {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto auto;
-      gap: 14px;
+      gap: 12px;
       align-items: center;
     }
 
@@ -396,48 +424,47 @@ interface SearchContext {
     }
 
     .source-toggle {
-      height: 48px;
-      background: rgba(244, 247, 244, 0.9);
-      border-radius: 16px;
+      height: 46px;
+      background: var(--hy-gray-50);
+      border-radius: 6px;
     }
 
     .toggle-label {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       font-weight: 600;
+      font-size: 12px;
     }
 
     .toggle-label mat-icon {
-      font-size: 16px;
-      height: 16px;
-      width: 16px;
+      font-size: 15px;
+      height: 15px;
+      width: 15px;
     }
 
-    .toggle-label-alfresco {
-      color: var(--source-alfresco-strong);
-    }
-
-    .toggle-label-nuxeo {
-      color: var(--source-nuxeo-strong);
-    }
+    .toggle-label-alfresco { color: var(--source-alfresco-strong); }
+    .toggle-label-nuxeo    { color: var(--source-nuxeo-strong); }
 
     .search-action {
-      min-height: 48px;
-      min-width: 150px;
-      border-radius: 16px;
+      min-height: 46px;
+      min-width: 140px;
+      border-radius: 6px;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
     }
 
+    /* ---- Context bar ---- */
+
     .context-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      padding: 16px 20px;
+      gap: 14px;
+      padding: 12px 16px;
       flex-wrap: wrap;
     }
 
@@ -445,14 +472,14 @@ interface SearchContext {
     .context-stats {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
     .context-label {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--cl-text-soft);
     }
@@ -460,17 +487,19 @@ interface SearchContext {
     .ctx-user {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 7px 12px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .ctx-user mat-icon {
-      font-size: 14px;
-      height: 14px;
-      width: 14px;
+      font-size: 13px;
+      height: 13px;
+      width: 13px;
     }
 
     .ctx-user-alfresco {
@@ -486,27 +515,30 @@ interface SearchContext {
     .ctx-empty {
       color: var(--cl-text-soft);
       font-style: italic;
-      font-size: 13px;
+      font-size: 12px;
     }
+
+    /* ---- Results heading ---- */
 
     .results-heading {
       display: flex;
       justify-content: space-between;
-      gap: 16px;
+      gap: 14px;
       align-items: flex-end;
       flex-wrap: wrap;
-      padding: 0 4px;
+      padding: 0 2px;
     }
 
     .results-heading h2 {
       margin: 4px 0 0;
-      font-size: 26px;
-      letter-spacing: -0.04em;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
     }
 
-    .results-heading p {
-      max-width: 440px;
-    }
+    .results-heading p { max-width: 420px; }
+
+    /* ---- Empty state ---- */
 
     .empty-state {
       padding: 36px 28px;
@@ -515,22 +547,22 @@ interface SearchContext {
     }
 
     .empty-state > mat-icon {
-      font-size: 54px;
-      width: 54px;
-      height: 54px;
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
       color: var(--cl-text-soft);
     }
 
     .empty-title {
       margin: 12px 0 10px;
-      font-size: 20px;
-      font-weight: 700;
+      font-size: 18px;
+      font-weight: 600;
       color: var(--cl-text);
     }
 
     .empty-copy {
       margin: 0;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.7;
     }
 
@@ -540,10 +572,10 @@ interface SearchContext {
     }
 
     .permission-callout {
-      max-width: 560px;
+      max-width: 540px;
       margin: 18px auto 0;
-      padding: 18px;
-      border-radius: 18px;
+      padding: 16px;
+      border-radius: 8px;
       display: flex;
       align-items: flex-start;
       gap: 12px;
@@ -552,33 +584,23 @@ interface SearchContext {
       text-align: left;
     }
 
-    .permission-callout mat-icon {
-      color: var(--cl-warning);
-    }
+    .permission-callout mat-icon { color: var(--cl-warning); }
 
     .permission-callout p {
-      margin: 6px 0 0;
+      margin: 4px 0 0;
       font-size: 13px;
       line-height: 1.6;
       color: var(--cl-text-muted);
     }
 
-    .compare-section {
-      margin-top: 2px;
-    }
+    .compare-section { margin-top: 2px; }
+
+    /* ---- Responsive ---- */
 
     @media (max-width: 980px) {
-      .search-hero {
-        grid-template-columns: 1fr;
-      }
-
-      .search-bar {
-        grid-template-columns: 1fr;
-      }
-
-      .search-action {
-        width: 100%;
-      }
+      .search-hero { grid-template-columns: 1fr; }
+      .search-bar  { grid-template-columns: 1fr; }
+      .search-action { width: 100%; }
     }
   `]
 })
@@ -597,9 +619,9 @@ export class SearchComponent {
     private auth: AuthService
   ) {}
 
-  get anyLoggedIn(): boolean { return this.auth.isAnyLoggedIn(); }
+  get anyLoggedIn(): boolean     { return this.auth.isAnyLoggedIn(); }
   get alfrescoLoggedIn(): boolean { return this.auth.isAlfrescoLoggedIn(); }
-  get nuxeoLoggedIn(): boolean { return this.auth.isNuxeoLoggedIn(); }
+  get nuxeoLoggedIn(): boolean   { return this.auth.isNuxeoLoggedIn(); }
 
   get activeSessionCount(): number {
     return Number(this.alfrescoLoggedIn) + Number(this.nuxeoLoggedIn);
@@ -624,7 +646,6 @@ export class SearchComponent {
     const t0 = Date.now();
     const sourceType = this.sourceFilter || undefined;
 
-    // Snapshot sessions at search time because the active identities may change afterwards.
     const alfSession: AlfrescoSession | null = this.auth.getAlfrescoSession();
     const nuxSession: NuxeoSession | null = this.auth.getNuxeoSession();
 

@@ -5,7 +5,9 @@ import { RagResult } from '../services/rag.service';
   selector: 'app-results',
   template: `
     <mat-card *ngFor="let r of results" class="result-card" [ngClass]="cardClass(r.source)">
-      <div class="result-accent"></div>
+      <!-- Source identity stripe — 4px solid bar on left edge, color = source color -->
+      <div class="result-stripe"></div>
+
       <div class="result-shell">
         <div class="result-header">
           <div class="result-icon" [ngClass]="iconClass(r.source)">
@@ -15,10 +17,13 @@ import { RagResult } from '../services/rag.service';
           <div class="result-copy">
             <div class="result-topline">
               <span class="source-badge"
-                    [ngClass]="r.source === 'alfresco' ? 'source-badge-alfresco' : r.source === 'nuxeo' ? 'source-badge-nuxeo' : ''">
+                    [ngClass]="r.source === 'alfresco'
+                      ? 'source-badge-alfresco'
+                      : r.source === 'nuxeo'
+                        ? 'source-badge-nuxeo' : ''">
                 <mat-icon>{{ sourceIcon(r.source) }}</mat-icon>
                 {{ r.source ? (r.source | titlecase) : 'Unknown' }}
-                <span *ngIf="r.sourceId" class="source-id">{{ r.sourceId }}</span>
+                <span *ngIf="r.sourceId" class="source-id">· {{ r.sourceId }}</span>
               </span>
 
               <span class="rank-pill">#{{ r.rank }}</span>
@@ -27,21 +32,21 @@ import { RagResult } from '../services/rag.service';
             <h3>{{ r.title || '(untitled)' }}</h3>
 
             <div class="path-row" *ngIf="r.path">
-              <mat-icon>route</mat-icon>
+              <mat-icon>chevron_right</mat-icon>
               <span [matTooltip]="r.path">{{ truncatePath(r.path) }}</span>
             </div>
           </div>
         </div>
 
-        <div class="snippet">{{ r.snippet }}</div>
+        <div class="snippet" [ngClass]="snippetClass(r.source)">{{ r.snippet }}</div>
 
         <div class="result-footer">
           <div class="footer-meta">
             <span class="metric-chip">
               <mat-icon>insights</mat-icon>
-              score {{ r.score | number:'1.2-2' }}
+              {{ r.score | number:'1.2-2' }}
             </span>
-            <span *ngIf="r.url || r.openInSourceUrl" class="footer-hint">Open the original item in its source repository.</span>
+            <span *ngIf="r.url || r.openInSourceUrl" class="footer-hint">Open in source repository</span>
           </div>
 
           <button mat-stroked-button
@@ -62,39 +67,43 @@ import { RagResult } from '../services/rag.service';
     :host {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
     .result-card {
       position: relative;
       overflow: hidden;
+      transition: box-shadow 120ms ease, transform 120ms ease;
     }
 
-    .result-accent {
+    .result-card:hover {
+      box-shadow: var(--cl-shadow-raised);
+      transform: translateY(-1px);
+    }
+
+    /* Source-identity stripe — 4px solid left edge */
+    .result-stripe {
       position: absolute;
       inset: 0 auto 0 0;
-      width: 6px;
-      background: linear-gradient(180deg, rgba(24, 58, 100, 0.35), rgba(24, 58, 100, 0.08));
+      width: 4px;
+      background: var(--cl-border-strong);
     }
 
-    .result-card.result-alfresco .result-accent {
-      background: linear-gradient(180deg, var(--source-alfresco), rgba(118, 184, 42, 0.18));
-    }
-
-    .result-card.result-nuxeo .result-accent {
-      background: linear-gradient(180deg, var(--source-nuxeo), rgba(47, 109, 246, 0.18));
-    }
+    .result-alfresco .result-stripe { background: var(--source-alfresco); }
+    .result-nuxeo    .result-stripe { background: var(--source-nuxeo); }
 
     .result-shell {
-      padding: 22px 22px 20px 24px;
+      padding: 18px 20px 16px 22px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
+
+    /* ---- Header ---- */
 
     .result-header {
       display: flex;
-      gap: 16px;
+      gap: 14px;
       align-items: flex-start;
     }
 
@@ -102,12 +111,18 @@ import { RagResult } from '../services/rag.service';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 48px;
-      height: 48px;
-      border-radius: 16px;
-      background: rgba(24, 58, 100, 0.08);
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--hy-gray-100);
       color: var(--cl-primary);
       flex-shrink: 0;
+    }
+
+    .result-icon mat-icon {
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
     }
 
     .result-icon-alfresco {
@@ -129,109 +144,120 @@ import { RagResult } from '../services/rag.service';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .source-id {
-      opacity: 0.72;
-      font-weight: 600;
+      opacity: 0.65;
+      font-weight: 500;
     }
 
     h3 {
-      margin: 0 0 10px;
-      font-size: 21px;
-      line-height: 1.22;
-      letter-spacing: -0.03em;
+      margin: 0 0 6px;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.015em;
       color: var(--cl-text);
     }
 
     .path-row {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 2px;
       color: var(--cl-text-soft);
-      font-size: 12px;
+      font-size: 11px;
       max-width: 100%;
     }
 
     .path-row mat-icon {
-      width: 15px;
-      height: 15px;
-      font-size: 15px;
+      width: 14px;
+      height: 14px;
+      font-size: 14px;
       flex-shrink: 0;
+      opacity: 0.6;
     }
 
     .rank-pill {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 46px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(24, 49, 38, 0.06);
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--hy-gray-100);
       color: var(--cl-text-muted);
-      font-size: 12px;
-      font-weight: 700;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
     }
 
+    /* ---- Snippet ---- */
+
     .snippet {
-      padding: 18px;
-      border-radius: 18px;
-      background: rgba(244, 247, 244, 0.92);
-      border-left: 3px solid transparent;
+      padding: 14px 16px;
+      border-radius: 6px;
+      background: var(--hy-gray-50);
+      border-left: 3px solid var(--cl-border-strong);
       color: var(--cl-text);
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.72;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
-    .result-alfresco .snippet {
-      border-left-color: rgba(118, 184, 42, 0.4);
-    }
+    .snippet-alfresco { border-left-color: rgba(120, 190, 32, 0.5); }
+    .snippet-nuxeo    { border-left-color: rgba(0, 163, 224, 0.45); }
 
-    .result-nuxeo .snippet {
-      border-left-color: rgba(47, 109, 246, 0.3);
-    }
+    /* ---- Footer ---- */
 
     .result-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 14px;
       flex-wrap: wrap;
     }
 
     .footer-meta {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
     .footer-hint {
       color: var(--cl-text-soft);
-      font-size: 12px;
+      font-size: 11px;
     }
 
     .open-button {
-      min-height: 42px;
-      border-radius: 14px;
-      font-weight: 700;
+      min-height: 36px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .open-button mat-icon {
+      font-size: 15px;
+      height: 15px;
+      width: 15px;
     }
 
     .open-button-alfresco {
       color: var(--source-alfresco-strong);
-      border-color: rgba(118, 184, 42, 0.28);
-      background: rgba(239, 248, 223, 0.8);
+      border-color: rgba(120, 190, 32, 0.3);
+      background: var(--source-alfresco-soft);
     }
 
     .open-button-nuxeo {
       color: var(--source-nuxeo-strong);
-      border-color: rgba(47, 109, 246, 0.22);
-      background: rgba(235, 241, 255, 0.82);
+      border-color: rgba(0, 163, 224, 0.25);
+      background: var(--source-nuxeo-soft);
     }
   `]
 })
@@ -243,7 +269,7 @@ export class ResultsComponent {
     if (!path || path.length <= 56) return path;
     const parts = path.split('/').filter(Boolean);
     if (parts.length <= 2) return path;
-    return `/${parts[0]}/.../${parts[parts.length - 1]}`;
+    return `/${parts[0]}/…/${parts[parts.length - 1]}`;
   }
 
   sourceIcon(source: string | undefined): string {
@@ -267,6 +293,12 @@ export class ResultsComponent {
   buttonClass(source: string | undefined): string {
     if (source === 'alfresco') return 'open-button-alfresco';
     if (source === 'nuxeo') return 'open-button-nuxeo';
+    return '';
+  }
+
+  snippetClass(source: string | undefined): string {
+    if (source === 'alfresco') return 'snippet-alfresco';
+    if (source === 'nuxeo') return 'snippet-nuxeo';
     return '';
   }
 }

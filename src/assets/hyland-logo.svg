@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hyland horizontal logo — coloured variant (light backgrounds).
+  Geometry: official Adobe Illustrator export (29.2.1), polygon coordinates unchanged.
+  Colours: 2025 Hyland brand palette applied to the four-parallelogram mark;
+           wordmark rendered in Hyland navy for use on white/light surfaces.
+
+  For use on dark backgrounds swap fill values:
+    mark polygons → #ffffff   |   wordmark path → #ffffff
+
+  Source: OneDrive brand asset pack (2025-04-13).
+  Authoritative copy: Brand Central — https://hyland.highspot.com/spots/67bc83dc929f310d9598cba7
+-->
+<svg id="horizontal" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1200 248.3"
+     role="img" aria-label="Hyland">
+  <!--
+    Four-parallelogram mark (H shape).
+    Quadrant → colour:
+      TOP-LEFT    → purple   #6B62B2
+      BOTTOM-LEFT → yellow   #F5C200
+      BOTTOM-RIGHT→ sky blue #4BBDE0
+      TOP-RIGHT   → teal     #00BBA8
+  -->
+  <polygon points="224.29 -.07 153.27 124.1 235.52 124.1 306.54 -.07"  fill="#6B62B2"/>
+  <polygon points="71.02 124.12 0 248.3 82.25 248.3 153.27 124.12"     fill="#F5C200"/>
+  <polygon points="235.6 124.19 164.58 248.37 246.84 248.37 317.85 124.19" fill="#4BBDE0"/>
+  <polygon points="388.88 0 317.85 124.19 400.11 124.19 471.14 0"      fill="#00BBA8"/>
+  <!-- Wordmark "HYLAND™" — Hyland navy on light surfaces -->
+  <path d="M580.88,84.86v79.51h-18.49v-32.78h-48.07v32.78h-18.49v-79.51h18.49v31.01h48.06v-31.01h18.5ZM676.53,84.86h21.71l-39.54,46.51v32.99h-18.49v-32.99l-39.65-46.51h22.26l26.91,31.45,26.79-31.45ZM717.91,84.86h18.49v63.68h53.71v15.83h-72.2v-79.51ZM870.48,84.86l39.54,79.51h-20.05l-8.41-17.05h-43.63l-8.41,17.05h-19.71l39.74-79.51h20.93ZM845.45,132.04h28.68l-14.29-29.01-14.4,29.01ZM1013.52,164.37h-16.28l-49.62-55.92v55.92h-17.94v-79.51h18.72l47.18,53.26v-53.26h17.94v79.51ZM1163.63,88.54v14.81h-4.3v-14.81h-8.04v-3.68h20.35v3.68h-8.01ZM1186.07,103.35l-6.26-14.24v14.24h-4.2v-18.49h6.49l5.76,13.24,5.75-13.24h6.39v18.49h-4.17v-14.24l-6.29,14.24h-3.47ZM1044.83,84.86h41.19c28.24,0,45.96,15.5,45.96,39.75s-17.72,39.75-45.96,39.75h-41.19v-79.51ZM1086.03,148.76c17.27,0,27.35-9.52,27.35-24.14s-10.08-24.14-27.46-24.14h-22.92v48.28h23.03Z" fill="#002855"/>
+</svg>

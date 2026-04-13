@@ -4,12 +4,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY angular.json tsconfig.json ./
 COPY src ./src
-RUN npm ci && npm install -g @angular/cli@~17.0.0
+RUN npm ci && npm install -g @angular/cli@~18.2.0
 RUN ng build
 
 # Runtime stage
 FROM nginx:alpine
-COPY --from=build /app/dist/content-lake-app-ui /usr/share/nginx/html
+COPY --from=build /app/dist/content-lake-app-ui/browser /usr/share/nginx/html
 COPY nginx-app.conf /etc/nginx/conf.d/default.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

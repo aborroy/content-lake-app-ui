@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hyland mark only (no wordmark) — coloured variant (light backgrounds).
+  Geometry: official Adobe Illustrator export (29.2.1), polygon coordinates unchanged.
+
+  For use on dark backgrounds set all fills to #ffffff.
+  Source: OneDrive brand asset pack (2025-04-13).
+-->
+<svg id="mark" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1200 632.41"
+     role="img" aria-label="Hyland mark">
+  <polygon points="571.27 -.19 390.38 316.08 599.88 316.08 780.77 -.19"  fill="#6B62B2"/>
+  <polygon points="180.88 316.14 0 632.41 209.5 632.41 390.38 316.14"   fill="#F5C200"/>
+  <polygon points="600.08 316.31 419.2 632.59 628.7 632.59 809.58 316.31" fill="#4BBDE0"/>
+  <polygon points="990.48 0 809.58 316.31 1019.1 316.31 1200 0"         fill="#00BBA8"/>
+</svg>

@@ -18,6 +18,8 @@ let _nextId = 0;
   template: `
     <div class="page-container chat-page">
       <div class="chat-layout surface-card">
+
+        <!-- Sidebar: session history -->
         <aside class="chat-sidebar">
           <div class="sidebar-header">
             <div>
@@ -48,12 +50,14 @@ let _nextId = 0;
                     [class.active]="s.sessionId === activeSessionId"
                     (click)="openConversation(s.sessionId)">
               <span class="session-title">{{ s.title }}</span>
-              <span class="session-meta">{{ s.updatedAt | date:'short' }} · {{ s.messageCount }} msg</span>
+              <span class="session-meta">{{ s.updatedAt | date:'shortDate' }} · {{ s.messageCount }} msg</span>
             </button>
           </div>
         </aside>
 
+        <!-- Main chat area -->
         <section class="chat-main">
+
           <div class="chat-toolbar">
             <div class="toolbar-copy">
               <span class="eyebrow">RAG assistant</span>
@@ -62,13 +66,13 @@ let _nextId = 0;
 
             <div class="toolbar-controls">
               <span *ngIf="!anyLoggedIn" class="toolbar-warning">
-                <mat-icon>warning</mat-icon>
+                <mat-icon>warning_amber</mat-icon>
                 Not logged in. <a routerLink="/login">Connect a repository</a>.
               </span>
 
               <span *ngIf="anyLoggedIn" class="toolbar-status">
                 <mat-icon>lock</mat-icon>
-                Session-aware retrieval enabled
+                Session-aware retrieval
               </span>
 
               <mat-button-toggle-group [(ngModel)]="selectedSourceType"
@@ -104,13 +108,14 @@ let _nextId = 0;
           </div>
 
           <div class="messages-area" #messagesContainer (scroll)="onScroll()">
+
             <div *ngIf="messages.length === 0" class="welcome-state">
               <div class="welcome-card">
-                <mat-icon>psychology</mat-icon>
+                <div class="welcome-icon">
+                  <mat-icon>psychology</mat-icon>
+                </div>
                 <h3>Grounded answers from your indexed content lake</h3>
-                <p>
-                  Ask a question, stream the answer, and expand source evidence below the response.
-                </p>
+                <p>Ask a question, stream the answer, and expand source evidence below the response.</p>
                 <div class="welcome-badges">
                   <span class="metric-chip">
                     <mat-icon>hub</mat-icon>
@@ -128,12 +133,13 @@ let _nextId = 0;
                  class="bubble"
                  [class.bubble-user]="msg.role === 'user'"
                  [class.bubble-assistant]="msg.role === 'assistant'">
+
               <div *ngIf="msg.role === 'user'" class="user-text">{{ msg.content }}</div>
 
               <div *ngIf="msg.role === 'assistant'" class="assistant-bubble">
                 <div *ngIf="msg.loading && !msg.content" class="loading-row">
-                  <mat-spinner diameter="18"></mat-spinner>
-                  <span>Thinking...</span>
+                  <mat-spinner diameter="16"></mat-spinner>
+                  <span>Thinking…</span>
                 </div>
 
                 <div *ngIf="msg.error" class="error-row">
@@ -172,10 +178,10 @@ let _nextId = 0;
                          [ngClass]="sourceCardClass(src.sourceType)">
                       <div class="source-header">
                         <div class="source-title-group">
-                          <span class="source-icon" [ngClass]="sourceBadgeClass(src.sourceType)">
+                          <span class="source-icon-wrap" [ngClass]="sourceBadgeClass(src.sourceType)">
                             <mat-icon>{{ sourceIcon(src.sourceType) }}</mat-icon>
                           </span>
-                          <div>
+                          <div class="source-meta">
                             <a *ngIf="src.openInSourceUrl"
                                [href]="src.openInSourceUrl"
                                target="_blank"
@@ -202,6 +208,7 @@ let _nextId = 0;
                 </div>
               </div>
             </div>
+
           </div>
 
           <div class="input-row">
@@ -220,146 +227,142 @@ let _nextId = 0;
               Send
             </button>
           </div>
+
         </section>
       </div>
     </div>
   `,
   styles: [`
-    .chat-page {
-      padding-top: 24px;
-    }
+    .chat-page { padding-top: 20px; }
 
     .chat-layout {
       display: grid;
-      grid-template-columns: 300px minmax(0, 1fr);
-      min-height: calc(100vh - 156px);
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: calc(100vh - 140px);
       overflow: hidden;
     }
 
-    .eyebrow {
-      display: inline-block;
-      color: var(--cl-text-soft);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-    }
+    /* ---- Sidebar ---- */
 
     .chat-sidebar {
-      padding: 20px;
+      padding: 18px 16px;
       border-right: 1px solid var(--cl-border);
-      background: linear-gradient(180deg, rgba(244, 247, 244, 0.72), rgba(255, 255, 255, 0.8));
+      background: var(--hy-gray-50);
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
     .sidebar-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
     }
 
     .sidebar-header h2 {
-      margin: 6px 0 0;
-      font-size: 24px;
-      letter-spacing: -0.04em;
+      margin: 4px 0 0;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
     }
 
     .sidebar-action {
-      border-radius: 14px;
-      min-height: 42px;
+      border-radius: 6px;
+      min-height: 36px;
+      font-size: 12px;
+      font-weight: 600;
     }
 
     .sidebar-legend {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
     .session-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      overflow: auto;
+      gap: 6px;
+      overflow-y: auto;
       scrollbar-width: thin;
-      scrollbar-color: rgba(24, 49, 38, 0.12) transparent;
+      scrollbar-color: var(--cl-border-strong) transparent;
     }
 
-    .session-list::-webkit-scrollbar {
-      width: 5px;
-    }
-
+    .session-list::-webkit-scrollbar { width: 4px; }
     .session-list::-webkit-scrollbar-thumb {
       border-radius: 99px;
-      background: rgba(24, 49, 38, 0.12);
+      background: var(--cl-border-strong);
     }
 
     .session-item {
       border: 1px solid var(--cl-border);
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.72);
-      padding: 14px 16px;
+      border-radius: 8px;
+      background: var(--cl-surface);
+      padding: 10px 12px;
       text-align: left;
       cursor: pointer;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      transition: 160ms ease;
+      gap: 3px;
+      transition: all 120ms ease;
       color: var(--cl-text);
     }
 
     .session-item:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 20px rgba(24, 49, 38, 0.08);
+      border-color: var(--cl-border-strong);
+      box-shadow: var(--cl-shadow-soft);
     }
 
     .session-item.active {
-      border-color: rgba(24, 58, 100, 0.18);
-      background: linear-gradient(135deg, rgba(24, 58, 100, 0.08), rgba(47, 109, 246, 0.08));
+      border-color: rgba(0, 40, 85, 0.2);
+      background: linear-gradient(135deg, rgba(0, 40, 85, 0.05), rgba(0, 163, 224, 0.04));
     }
 
     .session-title {
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 600;
       line-height: 1.4;
     }
 
     .session-meta {
       color: var(--cl-text-soft);
-      font-size: 11px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
+
+    /* ---- Main chat area ---- */
 
     .chat-main {
       display: flex;
       flex-direction: column;
       min-width: 0;
-      background: rgba(255, 255, 255, 0.46);
     }
 
     .chat-toolbar {
       display: flex;
       justify-content: space-between;
-      gap: 18px;
+      gap: 16px;
       flex-wrap: wrap;
-      padding: 22px 24px 18px;
+      padding: 18px 20px 16px;
       border-bottom: 1px solid var(--cl-border);
-      background: rgba(255, 255, 255, 0.64);
+      background: var(--cl-surface);
     }
 
     .toolbar-copy h1 {
-      margin: 6px 0 0;
-      font-size: 28px;
-      line-height: 1.08;
-      letter-spacing: -0.05em;
-      max-width: 540px;
+      margin: 4px 0 0;
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      max-width: 500px;
     }
 
     .toolbar-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-end;
     }
@@ -368,12 +371,12 @@ let _nextId = 0;
     .toolbar-status {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      min-height: 42px;
-      padding: 0 14px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
     }
 
     .toolbar-warning {
@@ -382,108 +385,118 @@ let _nextId = 0;
     }
 
     .toolbar-status {
-      background: rgba(236, 248, 236, 0.92);
+      background: rgba(46, 125, 50, 0.07);
       color: var(--cl-success);
+      border: 1px solid rgba(46, 125, 50, 0.15);
     }
 
     .source-toggle {
-      height: 44px;
-      border-radius: 16px;
-      background: rgba(244, 247, 244, 0.88);
+      height: 40px;
+      border-radius: 6px;
+      background: var(--hy-gray-50);
     }
 
     .toggle-label {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-weight: 700;
+      gap: 5px;
+      font-weight: 600;
+      font-size: 12px;
     }
 
     .toggle-label mat-icon {
-      width: 16px;
-      height: 16px;
-      font-size: 16px;
+      width: 15px;
+      height: 15px;
+      font-size: 15px;
     }
 
-    .toggle-label-alfresco {
-      color: var(--source-alfresco-strong);
-    }
+    .toggle-label-alfresco { color: var(--source-alfresco-strong); }
+    .toggle-label-nuxeo    { color: var(--source-nuxeo-strong); }
 
-    .toggle-label-nuxeo {
-      color: var(--source-nuxeo-strong);
-    }
+    /* ---- Messages area ---- */
 
     .messages-area {
       flex: 1;
       overflow-y: auto;
-      padding: 22px 24px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      background:
-        radial-gradient(circle at top right, rgba(47, 109, 246, 0.06), transparent 24%),
-        linear-gradient(180deg, rgba(247, 250, 248, 0.56), rgba(244, 247, 244, 0.36));
+      gap: 14px;
+      background: var(--hy-gray-50);
       scrollbar-width: thin;
-      scrollbar-color: rgba(24, 49, 38, 0.14) transparent;
+      scrollbar-color: var(--cl-border-strong) transparent;
     }
 
-    .messages-area::-webkit-scrollbar {
-      width: 6px;
-    }
-
+    .messages-area::-webkit-scrollbar { width: 5px; }
     .messages-area::-webkit-scrollbar-thumb {
       border-radius: 99px;
-      background: rgba(24, 49, 38, 0.14);
+      background: var(--cl-border-strong);
     }
 
+    /* ---- Welcome state ---- */
 
     .welcome-state {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 320px;
+      min-height: 280px;
     }
 
     .welcome-card {
-      max-width: 560px;
-      padding: 30px;
-      border-radius: 28px;
-      background: rgba(255, 255, 255, 0.88);
+      max-width: 500px;
+      padding: 28px;
+      border-radius: 12px;
+      background: var(--cl-surface);
       border: 1px solid var(--cl-border);
       box-shadow: var(--cl-shadow-soft);
       text-align: center;
     }
 
-    .welcome-card > mat-icon {
-      width: 56px;
-      height: 56px;
-      font-size: 56px;
-      color: var(--cl-text-soft);
+    .welcome-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: var(--hy-navy);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .welcome-icon mat-icon {
+      color: #fff;
+      font-size: 26px;
+      height: 26px;
+      width: 26px;
     }
 
     .welcome-card h3 {
-      margin: 16px 0 10px;
-      font-size: 28px;
-      letter-spacing: -0.05em;
+      margin: 0 0 10px;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
     }
 
     .welcome-card p {
       margin: 0;
       color: var(--cl-text-muted);
-      line-height: 1.7;
+      line-height: 1.65;
+      font-size: 14px;
     }
 
     .welcome-badges {
       display: flex;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
-      margin-top: 18px;
+      margin-top: 16px;
     }
 
+    /* ---- Message bubbles ---- */
+
     .bubble {
-      max-width: min(920px, 88%);
+      max-width: min(880px, 90%);
       display: flex;
     }
 
@@ -494,26 +507,26 @@ let _nextId = 0;
     .bubble-assistant {
       align-self: flex-start;
       width: 100%;
-      max-width: min(980px, 92%);
+      max-width: min(960px, 94%);
     }
 
     .user-text {
-      background: linear-gradient(135deg, rgba(24, 58, 100, 0.95), rgba(47, 109, 246, 0.92));
+      background: var(--hy-navy);
       color: white;
-      padding: 14px 18px;
-      border-radius: 22px 22px 8px 22px;
+      padding: 12px 16px;
+      border-radius: 12px 12px 4px 12px;
       font-size: 14px;
-      line-height: 1.7;
+      line-height: 1.65;
       white-space: pre-wrap;
       word-break: break-word;
-      box-shadow: 0 14px 28px rgba(24, 58, 100, 0.18);
+      box-shadow: 0 4px 14px rgba(0, 40, 85, 0.2);
     }
 
     .assistant-bubble {
-      background: rgba(255, 255, 255, 0.84);
+      background: var(--cl-surface);
       border: 1px solid var(--cl-border);
-      border-radius: 8px 22px 22px 22px;
-      padding: 18px;
+      border-radius: 4px 12px 12px 12px;
+      padding: 16px;
       box-shadow: var(--cl-shadow-soft);
     }
 
@@ -522,20 +535,15 @@ let _nextId = 0;
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
+      font-size: 12px;
     }
 
-    .loading-row {
-      color: var(--cl-text-muted);
-    }
-
-    .error-row {
-      color: var(--cl-danger);
-    }
+    .loading-row { color: var(--cl-text-muted); }
+    .error-row   { color: var(--cl-danger); }
 
     .answer-text {
-      font-size: 15px;
-      line-height: 1.8;
+      font-size: 14px;
+      line-height: 1.78;
       white-space: pre-wrap;
       word-break: break-word;
       color: var(--cl-text);
@@ -543,9 +551,10 @@ let _nextId = 0;
 
     .stream-cursor {
       display: inline-block;
-      color: var(--source-nuxeo);
+      color: var(--hy-teal);
       animation: blink 0.8s step-end infinite;
       margin-left: 2px;
+      font-weight: 300;
     }
 
     @keyframes blink {
@@ -556,120 +565,136 @@ let _nextId = 0;
     .msg-meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 14px;
+      gap: 6px;
+      margin-top: 12px;
     }
 
-    .sources-section {
-      margin-top: 14px;
-    }
+    /* ---- Source citations ---- */
+
+    .sources-section { margin-top: 12px; }
 
     .sources-toggle {
       padding: 0 6px;
-      min-height: 34px;
-      border-radius: 12px;
+      min-height: 32px;
+      border-radius: 6px;
       color: var(--cl-primary);
-      font-weight: 700;
+      font-size: 12px;
+      font-weight: 600;
     }
 
     .sources-list {
-      margin-top: 10px;
+      margin-top: 8px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 8px;
     }
 
     .source-item {
-      padding: 16px;
-      border-radius: 20px;
+      padding: 14px;
+      border-radius: 8px;
       border: 1px solid var(--cl-border);
-      background: rgba(247, 250, 248, 0.92);
+      background: var(--hy-gray-50);
     }
 
-    .source-item.source-item-alfresco {
-      border-color: rgba(118, 184, 42, 0.18);
-      background: linear-gradient(180deg, rgba(239, 248, 223, 0.72), rgba(255, 255, 255, 0.88));
+    .source-item-alfresco {
+      border-color: rgba(120, 190, 32, 0.2);
+      background: rgba(239, 248, 223, 0.5);
     }
 
-    .source-item.source-item-nuxeo {
-      border-color: rgba(47, 109, 246, 0.16);
-      background: linear-gradient(180deg, rgba(235, 241, 255, 0.76), rgba(255, 255, 255, 0.88));
+    .source-item-nuxeo {
+      border-color: rgba(0, 163, 224, 0.18);
+      background: rgba(229, 246, 252, 0.5);
     }
 
     .source-header {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       align-items: flex-start;
       flex-wrap: wrap;
     }
 
     .source-title-group {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
       flex: 1;
+      align-items: flex-start;
     }
 
-    .source-icon {
+    .source-icon-wrap {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 38px;
-      height: 38px;
-      border-radius: 14px;
-      background: rgba(24, 49, 38, 0.06);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(0, 40, 85, 0.06);
       color: var(--cl-primary);
       flex-shrink: 0;
     }
 
+    .source-icon-wrap mat-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+    }
+
+    .source-icon-wrap.source-badge-alfresco {
+      background: var(--source-alfresco-soft);
+      color: var(--source-alfresco-strong);
+    }
+
+    .source-icon-wrap.source-badge-nuxeo {
+      background: var(--source-nuxeo-soft);
+      color: var(--source-nuxeo-strong);
+    }
+
+    .source-meta { min-width: 0; }
+
     .source-name {
       display: inline-block;
       color: var(--cl-primary);
-      font-weight: 700;
+      font-weight: 600;
+      font-size: 13px;
       text-decoration: none;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
-    .source-name:hover {
-      text-decoration: underline;
-    }
+    .source-name:hover { text-decoration: underline; }
 
     .source-path {
       color: var(--cl-text-soft);
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 11px;
+      line-height: 1.5;
       word-break: break-word;
     }
 
     .source-chunk {
-      margin-top: 12px;
-      padding: 12px 14px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.78);
-      border-left: 4px solid rgba(24, 58, 100, 0.16);
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.8);
+      border-left: 3px solid var(--cl-border-strong);
       color: var(--cl-text);
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.7;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
-    .source-item-alfresco .source-chunk {
-      border-left-color: rgba(118, 184, 42, 0.45);
-    }
+    .source-item-alfresco .source-chunk { border-left-color: rgba(120, 190, 32, 0.5); }
+    .source-item-nuxeo    .source-chunk { border-left-color: rgba(0, 163, 224, 0.45); }
 
-    .source-item-nuxeo .source-chunk {
-      border-left-color: rgba(47, 109, 246, 0.35);
-    }
+    /* ---- Input row ---- */
 
     .input-row {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 18px 24px 22px;
+      gap: 10px;
+      padding: 14px 20px 18px;
       border-top: 1px solid var(--cl-border);
-      background: rgba(255, 255, 255, 0.72);
+      background: var(--cl-surface);
     }
 
     .question-field {
@@ -678,43 +703,37 @@ let _nextId = 0;
     }
 
     .send-button {
-      min-height: 50px;
-      min-width: 132px;
-      border-radius: 16px;
+      min-height: 46px;
+      min-width: 110px;
+      border-radius: 6px;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
+    /* ---- Responsive ---- */
+
     @media (max-width: 1040px) {
-      .chat-layout {
-        grid-template-columns: 1fr;
-      }
+      .chat-layout { grid-template-columns: 1fr; }
 
       .chat-sidebar {
         border-right: 0;
         border-bottom: 1px solid var(--cl-border);
       }
 
-      .bubble,
-      .bubble-assistant {
-        max-width: 100%;
-      }
+      .bubble, .bubble-assistant { max-width: 100%; }
     }
 
     @media (max-width: 760px) {
-      .toolbar-copy h1 {
-        font-size: 24px;
-      }
+      .toolbar-copy h1 { font-size: 17px; }
 
       .input-row {
         flex-direction: column;
         align-items: stretch;
       }
 
-      .send-button {
-        width: 100%;
-      }
+      .send-button { width: 100%; }
     }
   `]
 })
@@ -752,9 +771,9 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  get anyLoggedIn(): boolean { return this.auth.isAnyLoggedIn(); }
+  get anyLoggedIn(): boolean     { return this.auth.isAnyLoggedIn(); }
   get alfrescoLoggedIn(): boolean { return this.auth.isAlfrescoLoggedIn(); }
-  get nuxeoLoggedIn(): boolean { return this.auth.isNuxeoLoggedIn(); }
+  get nuxeoLoggedIn(): boolean   { return this.auth.isNuxeoLoggedIn(); }
 
   ask(): void {
     const q = this.currentQuestion.trim();
