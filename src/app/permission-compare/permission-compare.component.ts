@@ -135,6 +135,7 @@ export interface CompareResult {
       /* Shape via MDC token in styles.scss — no internal class selectors */
       overflow: hidden;
       border: 1px solid var(--cl-border);
+      border-radius: var(--radius-lg);
       box-shadow: var(--cl-shadow-soft);
     }
 
@@ -222,13 +223,13 @@ export interface CompareResult {
     }
 
     .score-card {
-      padding: 16px;
-      border-radius: 8px;
+      padding: 20px;
+      border-radius: var(--radius-md);
       border: 1px solid var(--cl-border);
       background: var(--hy-gray-50);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
 
     .score-card-alfresco {
@@ -250,8 +251,9 @@ export interface CompareResult {
     }
 
     .score-count {
-      font-size: 36px;
-      font-weight: 300;
+      font-family: var(--cl-font-display);
+      font-size: 44px;
+      font-weight: 700;
       line-height: 1;
       letter-spacing: -0.04em;
       color: var(--cl-text);
@@ -318,10 +320,11 @@ export interface CompareResult {
     }
 
     .result-section-header h3 {
-      margin: 4px 0 0;
-      font-size: 18px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
+      margin: 6px 0 0;
+      font-family: var(--cl-font-display);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
       color: var(--cl-text);
     }
 

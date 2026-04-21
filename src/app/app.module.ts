@@ -32,7 +32,6 @@ import { AuthComponent } from './auth/auth.component';
 import { SearchComponent } from './search/search.component';
 import { ResultsComponent } from './results/results.component';
 import { ChatComponent } from './chat/chat.component';
-import { StatusPanelComponent } from './status-panel/status-panel.component';
 import { PermissionCompareComponent } from './permission-compare/permission-compare.component';
 import { AuthHttpInterceptor } from './interceptors/auth.interceptor';
 
@@ -55,7 +54,6 @@ const routes: Routes = [
     SearchComponent,
     ResultsComponent,
     ChatComponent,
-    StatusPanelComponent,
     PermissionCompareComponent
   ],
   imports: [

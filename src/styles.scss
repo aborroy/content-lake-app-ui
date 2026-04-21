@@ -1,19 +1,17 @@
 // ---------------------------------------------------------------------------
-// Content Lake — Satori-ready Material 3 theme (Hyland brand palette)
+// Content Lake — Hyland.com-aligned Material 3 theme
 // ---------------------------------------------------------------------------
-// This file applies Angular Material's M3 theming API with Hyland brand
-// palette and IBM Plex Sans typography. When @hyland/ui packages are added,
-// replace the two blocks below with the Hyland UI integration layer:
+// Visual language:
+//   - Editorial display type (Inter) for heroes, IBM Plex for body
+//   - Dark navy hero canvas with the 4 Hyland mark-colour accent glows
+//   - Large radius (20–28px) on marketing surfaces, 6px on buttons
+//   - Generous whitespace + 1280px max container
 //
-//   @use '@hyland/ui/theming/hy-palette.theme' as hy-palette;
-//   @use 'your-component.theme';
-//   @include hyland-ui-typography();              // typography
-//   @include your-component.theme(hy-palette.$light);
-//
-// References:
-//   Theming guide:   https://hyland.atlassian.net/wiki/spaces/HDF/pages/2250113315
-//   Override policy: https://hyland.atlassian.net/wiki/spaces/HDF/pages/3894444867
-//   Typography:      https://hyland.atlassian.net/wiki/spaces/FE/pages/49348790/Typography+dev
+// When @hyland/ui is integrated, replace the Material 3 theme + tokens
+// block with the Satori integration layer.
+//   https://hyland.atlassian.net/wiki/spaces/HDF/pages/2250113315
+//   https://hyland.atlassian.net/wiki/spaces/HDF/pages/3894444867
+//   https://hyland.atlassian.net/wiki/spaces/FE/pages/49348790/Typography+dev
 // ---------------------------------------------------------------------------
 
 @use '@angular/material' as mat;
@@ -21,7 +19,6 @@
 // -- Material 3 theme definition -------------------------------------------
 // Primary: mat.$blue-palette — tonal seed closest to Hyland navy (#002855).
 // Tertiary: mat.$green-palette — maps to Alfresco's brand green (#78BE20).
-// When @hyland/ui is integrated, replace palettes with hy-palette.$light tokens.
 
 $cl-theme: mat.define-theme((
   color: (
@@ -30,7 +27,7 @@ $cl-theme: mat.define-theme((
     tertiary: mat.$green-palette,
   ),
   typography: (
-    brand-family: '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif',
+    brand-family: '"Inter", "IBM Plex Sans", system-ui, "Segoe UI", sans-serif',
     plain-family: '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif',
   ),
   density: (
@@ -43,13 +40,13 @@ html {
 }
 
 // -- Hyland brand tokens ----------------------------------------------------
-// Colors derived from Hyland's corporate identity (hyland.com).
-// When @hyland/ui is integrated, these will be replaced by Satori design tokens.
+// Colours derived from Hyland's 2025 corporate identity (hyland.com).
 
 :root {
   // Core brand palette
   --hy-navy:       #002855;
   --hy-navy-dark:  #001B3D;
+  --hy-navy-900:   #000E1F;
   --hy-navy-light: #003D7A;
   --hy-teal:       #00A3E0;
   --hy-teal-dark:  #0082B3;
@@ -68,28 +65,59 @@ html {
   --hy-gray-700:   #2E3A4D;
   --hy-gray-900:   #1B2A4A;
 
+  // Hyland 2025 brand mark colours — used as editorial accents.
+  // Source: https://hyland.highspot.com/spots/67bc83dc929f310d9598cba7
+  --hy-mark-yellow:   #F5C200;
+  --hy-mark-purple:   #6B62B2;
+  --hy-mark-blue:     #4BBDE0;
+  --hy-mark-teal:     #00BBA8;
+
+  // Typography — Inter for editorial display, IBM Plex for body/UI
+  --cl-font:         "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --cl-font-display: "Inter", "IBM Plex Sans", system-ui, sans-serif;
+
   // Semantic surface + text
-  --cl-font:           "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
   --cl-bg:             var(--hy-gray-50);
   --cl-bg-soft:        var(--hy-gray-100);
+  --cl-bg-canvas:      #0A1936;    // deep editorial hero canvas
+  --cl-bg-canvas-alt:  #061127;    // slightly darker, used for nested surfaces on canvas
   --cl-surface:        var(--hy-white);
-  --cl-border:         rgba(0, 40, 85, 0.1);
+  --cl-border:         rgba(0, 40, 85, 0.09);
   --cl-border-strong:  rgba(0, 40, 85, 0.18);
   --cl-text:           var(--hy-gray-900);
   --cl-text-muted:     var(--hy-gray-500);
   --cl-text-soft:      var(--hy-gray-400);
+  --cl-text-oncanvas:  rgba(255, 255, 255, 0.92);
+  --cl-text-oncanvas-muted: rgba(255, 255, 255, 0.66);
   --cl-primary:        var(--hy-navy);
   --cl-accent:         var(--hy-teal);
   --cl-success:        #2E7D32;
   --cl-warning:        #C45500;
   --cl-danger:         #C62828;
 
-  // Elevation — two levels; flat-ish like Hyland enterprise apps
+  // Elevation — flat-ish, enterprise-app restraint
   --cl-shadow:        0 2px 8px rgba(0, 40, 85, 0.08), 0 1px 3px rgba(0, 40, 85, 0.05);
   --cl-shadow-soft:   0 1px 4px rgba(0, 40, 85, 0.06);
-  --cl-shadow-raised: 0 6px 24px rgba(0, 40, 85, 0.11), 0 2px 6px rgba(0, 40, 85, 0.06);
+  --cl-shadow-raised: 0 10px 32px rgba(0, 40, 85, 0.14), 0 2px 6px rgba(0, 40, 85, 0.06);
+  --cl-shadow-hero:   0 24px 60px -20px rgba(0, 40, 85, 0.45);
 
-  // Source-identity design tokens — used consistently across all views
+  // Radius scale — 6px actions, 12px enterprise cards, 20–28px editorial
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  // Motion — single easing vocabulary
+  --ease-out:    cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.25, 0.64, 1);
+
+  // Container scale
+  --container-narrow: 960px;
+  --container-base:   1120px;
+  --container-wide:   1280px;
+
+  // Source-identity tokens
   --source-alfresco:        var(--hy-green);
   --source-alfresco-strong: var(--hy-green-dark);
   --source-alfresco-soft:   var(--hy-green-soft);
@@ -97,35 +125,22 @@ html {
   --source-nuxeo-strong:    var(--hy-teal-dark);
   --source-nuxeo-soft:      var(--hy-teal-soft);
 
-  // -- Hyland 2025 brand mark colours ----------------------------------------
-  // Extracted from the official stacked logo (dark CMYK variant).
-  // Source: https://hyland.highspot.com/spots/67bc83dc929f310d9598cba7
-  --hy-mark-yellow:   #F5C200;
-  --hy-mark-purple:   #6B62B2;
-  --hy-mark-blue:     #4BBDE0;
-  --hy-mark-teal:     #00BBA8;
-
   // -- Material MDC public token overrides ----------------------------------
-  // Use published MDC tokens only — no internal class selectors.
-  // Policy: https://hyland.atlassian.net/wiki/spaces/HDF/pages/3894444867
-  //
-  // Shape: 12px cards, 6px buttons — enterprise density, less "consumer app"
-  --mdc-elevated-card-container-shape:  12px;
+  // Published MDC tokens only — no internal class selectors.
+  --mdc-elevated-card-container-shape:  var(--radius-md);
   --mdc-elevated-card-container-color:  var(--cl-surface);
-  --mdc-outlined-card-container-shape:  12px;
-  --mdc-filled-button-container-shape:  6px;
-  --mdc-protected-button-container-shape: 6px;
-  --mdc-outlined-button-container-shape: 6px;
-  --mdc-text-button-container-shape:    6px;
-  --mat-expansion-container-shape:      12px;
+  --mdc-outlined-card-container-shape:  var(--radius-md);
+  --mdc-filled-button-container-shape:  var(--radius-sm);
+  --mdc-protected-button-container-shape: var(--radius-sm);
+  --mdc-outlined-button-container-shape: var(--radius-sm);
+  --mdc-text-button-container-shape:    var(--radius-sm);
+  --mat-expansion-container-shape:      var(--radius-md);
 
-  // Toolbar — white background to match hyland.com chrome.
-  // Nav background colour is overridden per-component in navbar.component.ts.
   --mat-toolbar-container-color: #ffffff;
   --mat-toolbar-title-text-font: var(--cl-font);
 }
 
-// -- Global resets and layout -----------------------------------------------
+// -- Global resets ----------------------------------------------------------
 
 * { box-sizing: border-box; }
 
@@ -136,60 +151,138 @@ body {
   font-family: var(--cl-font);
   color: var(--cl-text);
   background: var(--cl-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a { color: var(--hy-teal-dark); text-decoration: none; }
 a:hover { color: var(--hy-navy); text-decoration: underline; }
 
-// -- Shared layout classes --------------------------------------------------
+// -- Focus-visible ----------------------------------------------------------
+// Single, consistent keyboard-focus style across the entire app.
+// Uses :focus-visible so mouse/touch users never see the ring.
+// Teal chosen for contrast on both light surfaces and the dark navy hero.
 
-.page-container {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 28px 20px 48px;
+:focus-visible {
+  outline: 2px solid var(--hy-mark-teal);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
+// Material buttons wrap a host element — the ring needs to reach the outer shell.
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--hy-mark-teal);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+// -- Layout helpers ---------------------------------------------------------
+
+.page-container {
+  max-width: var(--container-base);
+  margin: 0 auto;
+  padding: 28px 24px 56px;
+}
+
+.page-container-wide {
+  max-width: var(--container-wide);
+  margin: 0 auto;
+  padding: 28px 24px 56px;
+}
+
+// Surface card — enterprise density (12px radius, soft shadow)
 .surface-card {
   background: var(--cl-surface);
   border: 1px solid var(--cl-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--cl-shadow-soft);
+}
+
+// Editorial surface — larger radius, ambient shadow (used in heroes/CTAs)
+.editorial-surface {
+  background: var(--cl-surface);
+  border: 1px solid var(--cl-border);
+  border-radius: var(--radius-xl);
   box-shadow: var(--cl-shadow);
+}
+
+// -- Typography classes -----------------------------------------------------
+// Editorial display echoes hyland.com marketing type.
+
+.display-1 {
+  margin: 0;
+  font-family: var(--cl-font-display);
+  font-size: clamp(2.25rem, 4.4vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.032em;
+  color: var(--cl-text);
+}
+
+.display-2 {
+  margin: 0;
+  font-family: var(--cl-font-display);
+  font-size: clamp(1.75rem, 2.8vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  color: var(--cl-text);
 }
 
 .section-heading {
   margin: 0;
-  font-size: clamp(1.6rem, 2vw, 2.15rem);
+  font-family: var(--cl-font-display);
+  font-size: clamp(1.5rem, 2vw, 2rem);
   font-weight: 600;
-  line-height: 1.18;
+  line-height: 1.2;
   letter-spacing: -0.022em;
-  color: var(--hy-navy);
+  color: var(--cl-text);
 }
 
 .section-copy {
   margin: 0;
   color: var(--cl-text-muted);
-  line-height: 1.65;
+  line-height: 1.7;
+  font-size: 15px;
+  max-width: 62ch;
 }
 
 .eyebrow {
-  display: inline-block;
-  color: var(--cl-text-soft);
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hy-teal-dark);
+  font-family: var(--cl-font);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
+.eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+// Eyebrow variant for dark hero canvas
+.eyebrow-oncanvas {
+  color: var(--hy-mark-teal);
+}
+
 // -- Source-identity tags ---------------------------------------------------
-// Rectangular tag shape (not pill) signals repository provenance clearly
-// across search results, chat citations, and connection status indicators.
+// Rectangular tag shape signals provenance clearly across the app.
 
 .source-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 9px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -221,7 +314,7 @@ a:hover { color: var(--hy-navy); text-decoration: underline; }
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--cl-border);
   color: var(--cl-text-muted);
@@ -235,6 +328,14 @@ a:hover { color: var(--hy-navy); text-decoration: underline; }
   width: 14px;
 }
 
+// Metric chip variant on dark hero canvas
+.metric-chip-oncanvas {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--cl-text-oncanvas);
+  backdrop-filter: blur(6px);
+}
+
 // -- Utilities --------------------------------------------------------------
 
 .spacer { flex: 1 1 auto; }
@@ -245,5 +346,46 @@ a:hover { color: var(--hy-navy); text-decoration: underline; }
 // -- Responsive -------------------------------------------------------------
 
 @media (max-width: 900px) {
-  .page-container { padding: 20px 16px 36px; }
+  .page-container,
+  .page-container-wide { padding: 20px 16px 36px; }
+}
+
+// -- Hero entrance keyframes -----------------------------------------------
+// Triggered once on page-load by .hero-copy, .hero-stat/.hero-panel.
+// Staggered via animation-delay so copy fades in first, panel second.
+// The prefers-reduced-motion block at the bottom collapses these to 0.01ms.
+
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-copy {
+  animation: hero-fade-up 550ms var(--ease-out) both;
+}
+
+.hero-stat,
+.hero-panel {
+  animation: hero-fade-up 550ms var(--ease-out) 120ms both;
+}
+
+// -- Accessibility: respect prefers-reduced-motion -------------------------
+// Collapse all transitions and animations to near-zero when the OS reports
+// a reduced-motion preference. State changes still apply — they just snap.
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

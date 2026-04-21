@@ -67,18 +67,22 @@ import { RagResult } from '../services/rag.service';
     :host {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
     }
 
     .result-card {
       position: relative;
       overflow: hidden;
-      transition: box-shadow 120ms ease, transform 120ms ease;
+      border-radius: var(--radius-lg) !important;
+      border: 1px solid var(--cl-border);
+      box-shadow: var(--cl-shadow-soft);
+      transition: box-shadow 220ms var(--ease-out), transform 220ms var(--ease-out), border-color 220ms var(--ease-out);
     }
 
     .result-card:hover {
       box-shadow: var(--cl-shadow-raised);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      border-color: var(--cl-border-strong);
     }
 
     /* Source-identity stripe — 4px solid left edge */
@@ -93,7 +97,7 @@ import { RagResult } from '../services/rag.service';
     .result-nuxeo    .result-stripe { background: var(--source-nuxeo); }
 
     .result-shell {
-      padding: 18px 20px 16px 22px;
+      padding: 22px 24px 20px 26px;
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -156,10 +160,11 @@ import { RagResult } from '../services/rag.service';
 
     h3 {
       margin: 0 0 6px;
-      font-size: 17px;
+      font-family: var(--cl-font-display);
+      font-size: 18px;
       font-weight: 600;
       line-height: 1.3;
-      letter-spacing: -0.015em;
+      letter-spacing: -0.02em;
       color: var(--cl-text);
     }
 
@@ -197,12 +202,12 @@ import { RagResult } from '../services/rag.service';
 
     .snippet {
       padding: 14px 16px;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: var(--hy-gray-50);
       border-left: 3px solid var(--cl-border-strong);
       color: var(--cl-text);
-      font-size: 13px;
-      line-height: 1.72;
+      font-size: 13.5px;
+      line-height: 1.75;
       white-space: pre-wrap;
       word-break: break-word;
     }

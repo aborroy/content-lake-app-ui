@@ -16,8 +16,8 @@ let _nextId = 0;
 @Component({
   selector: 'app-chat',
   template: `
-    <div class="page-container chat-page">
-      <div class="chat-layout surface-card">
+    <div class="page-container-wide chat-page">
+      <div class="chat-layout editorial-surface">
 
         <!-- Sidebar: session history -->
         <aside class="chat-sidebar">
@@ -111,10 +111,14 @@ let _nextId = 0;
 
             <div *ngIf="messages.length === 0" class="welcome-state">
               <div class="welcome-card">
-                <div class="welcome-icon">
-                  <mat-icon>psychology</mat-icon>
+                <div class="welcome-dots" aria-hidden="true">
+                  <span class="wd wd-yellow"></span>
+                  <span class="wd wd-purple"></span>
+                  <span class="wd wd-blue"></span>
+                  <span class="wd wd-teal"></span>
                 </div>
-                <h3>Grounded answers from your indexed content lake</h3>
+                <span class="eyebrow">Ask the lake</span>
+                <h3 class="display-2">Grounded answers from your indexed content.</h3>
                 <p>Ask a question, stream the answer, and expand source evidence below the response.</p>
                 <div class="welcome-badges">
                   <span class="metric-chip">
@@ -233,24 +237,24 @@ let _nextId = 0;
     </div>
   `,
   styles: [`
-    .chat-page { padding-top: 20px; }
+    .chat-page { padding-top: 24px; }
 
     .chat-layout {
       display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
-      min-height: calc(100vh - 140px);
+      grid-template-columns: 296px minmax(0, 1fr);
+      min-height: calc(100vh - 160px);
       overflow: hidden;
     }
 
     /* ---- Sidebar ---- */
 
     .chat-sidebar {
-      padding: 18px 16px;
+      padding: 22px 18px;
       border-right: 1px solid var(--cl-border);
-      background: var(--hy-gray-50);
+      background: linear-gradient(180deg, var(--hy-gray-50), var(--hy-gray-100));
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
 
     .sidebar-header {
@@ -261,10 +265,11 @@ let _nextId = 0;
     }
 
     .sidebar-header h2 {
-      margin: 4px 0 0;
-      font-size: 18px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
+      margin: 6px 0 0;
+      font-family: var(--cl-font-display);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
     }
 
     .sidebar-action {
@@ -345,18 +350,19 @@ let _nextId = 0;
       justify-content: space-between;
       gap: 16px;
       flex-wrap: wrap;
-      padding: 18px 20px 16px;
+      padding: 22px 26px 20px;
       border-bottom: 1px solid var(--cl-border);
       background: var(--cl-surface);
     }
 
     .toolbar-copy h1 {
-      margin: 4px 0 0;
-      font-size: 20px;
-      font-weight: 600;
+      margin: 6px 0 0;
+      font-family: var(--cl-font-display);
+      font-size: 22px;
+      font-weight: 700;
       line-height: 1.25;
-      letter-spacing: -0.02em;
-      max-width: 500px;
+      letter-spacing: -0.025em;
+      max-width: 540px;
     }
 
     .toolbar-controls {
@@ -440,49 +446,53 @@ let _nextId = 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 280px;
+      min-height: 320px;
     }
 
     .welcome-card {
-      max-width: 500px;
-      padding: 28px;
-      border-radius: 12px;
-      background: var(--cl-surface);
+      max-width: 560px;
+      padding: 40px 32px;
+      border-radius: var(--radius-xl);
+      background:
+        radial-gradient(80% 100% at 50% 0%, rgba(75, 189, 224, 0.08) 0%, transparent 60%),
+        var(--cl-surface);
       border: 1px solid var(--cl-border);
-      box-shadow: var(--cl-shadow-soft);
+      box-shadow: var(--cl-shadow);
       text-align: center;
-    }
-
-    .welcome-icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 12px;
-      background: var(--hy-navy);
-      display: inline-flex;
+      display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      margin-bottom: 14px;
+      gap: 12px;
     }
 
-    .welcome-icon mat-icon {
-      color: #fff;
-      font-size: 26px;
-      height: 26px;
-      width: 26px;
+    .welcome-dots {
+      display: inline-flex;
+      gap: 10px;
+      margin-bottom: 6px;
     }
+
+    .wd {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .wd-yellow { background: var(--hy-mark-yellow); }
+    .wd-purple { background: var(--hy-mark-purple); }
+    .wd-blue   { background: var(--hy-mark-blue); }
+    .wd-teal   { background: var(--hy-mark-teal); }
 
     .welcome-card h3 {
-      margin: 0 0 10px;
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
+      margin: 4px 0 4px;
     }
 
     .welcome-card p {
       margin: 0;
       color: var(--cl-text-muted);
-      line-height: 1.65;
+      line-height: 1.7;
       font-size: 14px;
+      max-width: 44ch;
     }
 
     .welcome-badges {
@@ -490,7 +500,7 @@ let _nextId = 0;
       justify-content: center;
       gap: 8px;
       flex-wrap: wrap;
-      margin-top: 16px;
+      margin-top: 10px;
     }
 
     /* ---- Message bubbles ---- */
@@ -511,22 +521,22 @@ let _nextId = 0;
     }
 
     .user-text {
-      background: var(--hy-navy);
+      background: linear-gradient(135deg, var(--hy-navy) 0%, var(--hy-navy-light) 100%);
       color: white;
-      padding: 12px 16px;
-      border-radius: 12px 12px 4px 12px;
+      padding: 13px 18px;
+      border-radius: 18px 18px 4px 18px;
       font-size: 14px;
       line-height: 1.65;
       white-space: pre-wrap;
       word-break: break-word;
-      box-shadow: 0 4px 14px rgba(0, 40, 85, 0.2);
+      box-shadow: 0 10px 24px -10px rgba(0, 40, 85, 0.45);
     }
 
     .assistant-bubble {
       background: var(--cl-surface);
       border: 1px solid var(--cl-border);
-      border-radius: 4px 12px 12px 12px;
-      padding: 16px;
+      border-radius: 4px 18px 18px 18px;
+      padding: 18px 20px;
       box-shadow: var(--cl-shadow-soft);
     }
 

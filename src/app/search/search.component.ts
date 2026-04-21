@@ -16,18 +16,24 @@ interface SearchContext {
 @Component({
   selector: 'app-search',
   template: `
-    <div class="page-container search-page">
+    <!-- Editorial hero --------------------------------------------------- -->
+    <section class="search-hero">
+      <div class="hero-glow hero-glow-blue"></div>
+      <div class="hero-glow hero-glow-teal"></div>
 
-      <section class="search-hero surface-card">
+      <div class="hero-shell">
         <div class="hero-copy">
           <span class="eyebrow">Search workspace</span>
-          <h1 class="section-heading">Find the right document faster, and see where it came from.</h1>
-          <p class="section-copy">
+          <h1 class="display-1">
+            Find the right document faster —
+            <span class="accent-teal">and see where it came from.</span>
+          </h1>
+          <p class="hero-lede">
             Search across Alfresco and Nuxeo with clearer ranking, stronger contrast, and persistent
             source cues so you can spot repository ownership at a glance.
           </p>
 
-          <div class="hero-metrics">
+          <div class="hero-chips">
             <span class="metric-chip">
               <mat-icon>visibility</mat-icon>
               Source-aware results
@@ -47,9 +53,9 @@ interface SearchContext {
           </div>
         </div>
 
-        <div class="hero-panel">
+        <aside class="hero-panel">
           <div class="hero-panel-header">
-            <span class="hero-panel-label">Repository sessions</span>
+            <span class="stat-label">Repository sessions</span>
             <span class="hero-panel-count">{{ activeSessionCount }}/2</span>
           </div>
 
@@ -75,21 +81,24 @@ interface SearchContext {
           <p class="hero-panel-note">
             Use the source filter below to narrow to one repository, or keep both to compare relevance.
           </p>
-        </div>
-      </section>
+        </aside>
+      </div>
+    </section>
 
-      <mat-card *ngIf="!anyLoggedIn" class="warning-banner">
-        <mat-card-content>
-          <mat-icon>warning_amber</mat-icon>
-          <span>No active sessions. <a routerLink="/login">Connect Alfresco, Nuxeo, or both</a> to search.</span>
-        </mat-card-content>
-      </mat-card>
+    <div class="page-container-wide search-body">
 
-      <section class="search-controls surface-card">
+      <div *ngIf="!anyLoggedIn" class="warning-banner editorial-surface">
+        <div class="warning-accent" aria-hidden="true"></div>
+        <mat-icon>warning_amber</mat-icon>
+        <span>No active sessions. <a routerLink="/login">Connect Alfresco, Nuxeo, or both</a> to search.</span>
+      </div>
+
+      <!-- Search controls ------------------------------------------------ -->
+      <section class="search-controls editorial-surface">
         <div class="search-header">
           <div>
             <span class="eyebrow">Query</span>
-            <h2>Readable results, with explicit source identity</h2>
+            <h2 class="display-2">Readable results, with explicit source identity.</h2>
           </div>
           <span class="search-header-note">Choose a scope, search, then review permission differences below.</span>
         </div>
@@ -127,6 +136,7 @@ interface SearchContext {
                   [disabled]="loading || !query.trim() || !anyLoggedIn">
             <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
             <span>{{ loading ? 'Searching…' : 'Run search' }}</span>
+            <mat-icon *ngIf="!loading">arrow_forward</mat-icon>
           </button>
         </div>
       </section>
@@ -166,7 +176,7 @@ interface SearchContext {
       <div *ngIf="ctx && results.length > 0" class="results-heading">
         <div>
           <span class="eyebrow">Results</span>
-          <h2>Ranked document matches</h2>
+          <h2 class="display-2">Ranked document matches.</h2>
         </div>
         <p class="section-copy">
           Repository colors stay attached to each card, badge, and action so provenance remains obvious while scanning.
@@ -176,7 +186,9 @@ interface SearchContext {
       <app-results [results]="results" (select)="openLink($event)"></app-results>
 
       <div *ngIf="searched && !loading && results.length === 0" class="empty-state surface-card">
-        <mat-icon>search_off</mat-icon>
+        <div class="empty-icon">
+          <mat-icon>search_off</mat-icon>
+        </div>
         <p class="empty-title">No results for "{{ ctx?.query }}"</p>
 
         <ng-container *ngIf="lastCompareResult && lastCompareResult.count > 0">
@@ -214,44 +226,94 @@ interface SearchContext {
     </div>
   `,
   styles: [`
-    .search-page {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+    :host { display: block; }
 
-    /* ---- Hero ---- */
+    /* ── Hero (light editorial) ─────────────────────────────── */
 
     .search-hero {
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(80% 120% at 80% -10%, rgba(75, 189, 224, 0.14) 0%, transparent 60%),
+        radial-gradient(60% 80% at 8% 110%, rgba(107, 98, 178, 0.1) 0%, transparent 65%),
+        linear-gradient(180deg, #F8FAFE 0%, var(--cl-bg) 100%);
+      padding: clamp(44px, 6vw, 72px) 0 clamp(56px, 6vw, 80px);
+      border-bottom: 1px solid var(--cl-border);
+    }
+
+    .hero-glow {
+      position: absolute;
+      pointer-events: none;
+      border-radius: 50%;
+      filter: blur(80px);
+    }
+    .hero-glow-blue {
+      width: 380px; height: 380px;
+      top: -40px; right: 6%;
+      background: var(--hy-mark-blue);
+      opacity: 0.18;
+    }
+    .hero-glow-teal {
+      width: 320px; height: 320px;
+      bottom: -60px; left: 20%;
+      background: var(--hy-mark-teal);
+      opacity: 0.14;
+    }
+
+    .hero-shell {
+      position: relative;
+      max-width: var(--container-wide);
+      margin: 0 auto;
+      padding: 0 24px;
       display: grid;
-      grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
-      gap: 24px;
-      padding: 28px;
+      grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.9fr);
+      gap: clamp(28px, 4vw, 56px);
+      align-items: end;
     }
 
     .hero-copy {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 18px;
       min-width: 0;
     }
 
-    .hero-metrics {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 2px;
+    .accent-teal {
+      background: linear-gradient(90deg, var(--hy-teal-dark), var(--hy-mark-teal));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
 
+    .hero-lede {
+      margin: 0;
+      font-size: clamp(15px, 1.15vw, 17px);
+      line-height: 1.7;
+      color: var(--cl-text-muted);
+      max-width: 58ch;
+    }
+
+    .hero-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    /* ── Hero panel ────────────────────────────────────────── */
+
     .hero-panel {
-      padding: 20px;
-      border-radius: 8px;
-      background: var(--hy-gray-50);
+      justify-self: end;
+      width: 100%;
+      max-width: 340px;
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--cl-surface);
       border: 1px solid var(--cl-border);
+      box-shadow: var(--cl-shadow);
       display: flex;
       flex-direction: column;
       gap: 14px;
-      align-self: stretch;
     }
 
     .hero-panel-header {
@@ -261,17 +323,18 @@ interface SearchContext {
       gap: 8px;
     }
 
-    .hero-panel-label {
+    .stat-label {
       font-size: 10px;
       font-weight: 700;
       color: var(--cl-text-soft);
       text-transform: uppercase;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.2em;
     }
 
     .hero-panel-count {
-      font-size: 22px;
-      font-weight: 300;
+      font-family: var(--cl-font-display);
+      font-size: 26px;
+      font-weight: 700;
       letter-spacing: -0.03em;
       color: var(--cl-text);
     }
@@ -285,31 +348,33 @@ interface SearchContext {
     .hero-session {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 8px;
+      gap: 12px;
+      padding: 11px 13px;
+      border-radius: var(--radius-md);
       border: 1px solid var(--cl-border);
-      background: var(--cl-surface);
+      background: var(--hy-gray-50);
       color: var(--cl-text-soft);
+      transition: all 180ms var(--ease-out);
     }
 
     .hero-session.connected {
       color: var(--cl-text);
+      background: var(--cl-surface);
     }
 
     .hero-session-alfresco.connected {
-      border-color: rgba(120, 190, 32, 0.28);
-      background: linear-gradient(135deg, rgba(120, 190, 32, 0.06), var(--cl-surface));
+      border-color: rgba(120, 190, 32, 0.35);
+      background: linear-gradient(135deg, rgba(120, 190, 32, 0.08), var(--cl-surface));
     }
 
     .hero-session-nuxeo.connected {
-      border-color: rgba(0, 163, 224, 0.28);
-      background: linear-gradient(135deg, rgba(0, 163, 224, 0.06), var(--cl-surface));
+      border-color: rgba(0, 163, 224, 0.3);
+      background: linear-gradient(135deg, rgba(0, 163, 224, 0.08), var(--cl-surface));
     }
 
     .session-indicator {
-      width: 8px;
-      height: 8px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
       background: var(--cl-border-strong);
       flex-shrink: 0;
@@ -317,25 +382,25 @@ interface SearchContext {
 
     .session-indicator.active {
       background: var(--cl-success);
-      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+      box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.15);
     }
 
     .hero-session-alfresco .session-indicator.active {
       background: var(--source-alfresco);
-      box-shadow: 0 0 0 3px rgba(120, 190, 32, 0.15);
+      box-shadow: 0 0 0 4px rgba(120, 190, 32, 0.2);
     }
 
     .hero-session-nuxeo .session-indicator.active {
       background: var(--source-nuxeo);
-      box-shadow: 0 0 0 3px rgba(0, 163, 224, 0.15);
+      box-shadow: 0 0 0 4px rgba(0, 163, 224, 0.2);
     }
 
     .session-src-icon {
-      font-size: 18px;
-      height: 18px;
-      width: 18px;
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
       flex-shrink: 0;
-      opacity: 0.6;
+      opacity: 0.5;
     }
 
     .connected .session-src-icon { opacity: 1; }
@@ -352,7 +417,6 @@ interface SearchContext {
     .session-info strong {
       font-size: 13px;
       font-weight: 600;
-      margin-bottom: 1px;
     }
 
     .session-info span {
@@ -367,48 +431,64 @@ interface SearchContext {
       color: var(--cl-text-muted);
     }
 
-    /* ---- Warning banner ---- */
+    /* ── Body ─────────────────────────────────────────────── */
 
-    .warning-banner mat-card-content {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 16px;
-      color: var(--cl-warning);
-      background: rgba(255, 248, 238, 0.85);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    /* ---- Search controls ---- */
-
-    .search-controls {
-      padding: 22px 24px 24px;
+    .search-body {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 20px;
+      margin-top: clamp(-40px, -3vw, -28px);
+      position: relative;
+      z-index: 2;
+    }
+
+    .warning-banner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      color: var(--cl-warning);
+      background: rgba(255, 248, 238, 0.92);
+      border-color: rgba(196, 85, 0, 0.18);
+      font-size: 13px;
+      font-weight: 500;
+      overflow: hidden;
+    }
+
+    .warning-accent {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 4px;
+      background: var(--hy-mark-yellow);
+    }
+
+    /* ── Search controls ──────────────────────────────────── */
+
+    .search-controls {
+      padding: 28px 32px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
     }
 
     .search-header {
       display: flex;
       justify-content: space-between;
-      gap: 16px;
+      gap: 18px;
       align-items: flex-end;
       flex-wrap: wrap;
     }
 
     .search-header h2 {
-      margin: 4px 0 0;
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
+      margin: 8px 0 0;
     }
 
     .search-header-note {
       color: var(--cl-text-muted);
       font-size: 13px;
-      max-width: 340px;
-      line-height: 1.6;
+      max-width: 360px;
+      line-height: 1.65;
     }
 
     .search-bar {
@@ -426,7 +506,7 @@ interface SearchContext {
     .source-toggle {
       height: 46px;
       background: var(--hy-gray-50);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
     }
 
     .toggle-label {
@@ -447,25 +527,38 @@ interface SearchContext {
     .toggle-label-nuxeo    { color: var(--source-nuxeo-strong); }
 
     .search-action {
-      min-height: 46px;
-      min-width: 140px;
-      border-radius: 6px;
+      min-height: 48px;
+      min-width: 154px;
+      padding: 0 22px;
+      border-radius: var(--radius-sm);
+      font-family: var(--cl-font-display);
       font-weight: 600;
+      font-size: 14px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
     }
 
-    /* ---- Context bar ---- */
+    .search-action mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+      transition: transform 220ms var(--ease-out);
+    }
+
+    .search-action:not([disabled]):hover mat-icon { transform: translateX(3px); }
+
+    /* ── Context bar ──────────────────────────────────────── */
 
     .context-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 14px;
-      padding: 12px 16px;
+      padding: 14px 20px;
       flex-wrap: wrap;
+      border-radius: var(--radius-lg) !important;
     }
 
     .context-group,
@@ -479,7 +572,7 @@ interface SearchContext {
     .context-label {
       font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
       color: var(--cl-text-soft);
     }
@@ -489,7 +582,7 @@ interface SearchContext {
       align-items: center;
       gap: 5px;
       padding: 4px 9px;
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
@@ -518,7 +611,7 @@ interface SearchContext {
       font-size: 12px;
     }
 
-    /* ---- Results heading ---- */
+    /* ── Results heading ──────────────────────────────────── */
 
     .results-heading {
       display: flex;
@@ -526,37 +619,48 @@ interface SearchContext {
       gap: 14px;
       align-items: flex-end;
       flex-wrap: wrap;
-      padding: 0 2px;
+      padding: 12px 4px 0;
     }
 
     .results-heading h2 {
-      margin: 4px 0 0;
-      font-size: 22px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
+      margin: 8px 0 0;
     }
 
-    .results-heading p { max-width: 420px; }
+    .results-heading p { max-width: 460px; }
 
-    /* ---- Empty state ---- */
+    /* ── Empty state ──────────────────────────────────────── */
 
     .empty-state {
-      padding: 36px 28px;
+      padding: 44px 32px;
       text-align: center;
       color: var(--cl-text-muted);
+      border-radius: var(--radius-lg) !important;
     }
 
-    .empty-state > mat-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
+    .empty-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius-lg);
+      background: var(--hy-gray-100);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .empty-icon mat-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
       color: var(--cl-text-soft);
     }
 
     .empty-title {
-      margin: 12px 0 10px;
-      font-size: 18px;
+      margin: 4px 0 10px;
+      font-family: var(--cl-font-display);
+      font-size: 20px;
       font-weight: 600;
+      letter-spacing: -0.02em;
       color: var(--cl-text);
     }
 
@@ -572,10 +676,10 @@ interface SearchContext {
     }
 
     .permission-callout {
-      max-width: 540px;
+      max-width: 560px;
       margin: 18px auto 0;
       padding: 16px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       display: flex;
       align-items: flex-start;
       gap: 12px;
@@ -595,11 +699,12 @@ interface SearchContext {
 
     .compare-section { margin-top: 2px; }
 
-    /* ---- Responsive ---- */
+    /* ── Responsive ───────────────────────────────────────── */
 
     @media (max-width: 980px) {
-      .search-hero { grid-template-columns: 1fr; }
-      .search-bar  { grid-template-columns: 1fr; }
+      .hero-shell { grid-template-columns: 1fr; }
+      .hero-panel { justify-self: stretch; max-width: none; }
+      .search-bar { grid-template-columns: 1fr; }
       .search-action { width: 100%; }
     }
   `]
