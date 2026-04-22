@@ -25,7 +25,7 @@ interface SearchContext {
         <div class="hero-copy">
           <span class="eyebrow">Search workspace</span>
           <h1 class="display-1">
-            Find the right document faster —
+            Find the right document faster ::
             <span class="accent-teal">and see where it came from.</span>
           </h1>
           <p class="hero-lede">
