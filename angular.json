@@ -20,6 +20,7 @@
               { "glob": "**/*", "input": "src/assets", "output": "/assets" }
             ],
             "styles": [
+              "@angular/cdk/overlay-prebuilt.css",
               "src/styles.scss"
             ],
             "scripts": []
