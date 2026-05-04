@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, map } from 'rxjs';
+import { BehaviorSubject, Observable, forkJoin, of } from 'rxjs';
+import { map, catchError, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface AlfrescoSession {
@@ -27,6 +28,9 @@ export class AuthService {
     if (alf) this.alfresco$.next(JSON.parse(alf));
     const nux = localStorage.getItem('nuxeoSession');
     if (nux) this.nuxeo$.next(JSON.parse(nux));
+
+    // Validate restored sessions asynchronously
+    this.validateSessions();
   }
 
   // ---- Alfresco ----
@@ -141,5 +145,82 @@ export class AuthService {
 
   isAnyLoggedIn(): boolean {
     return this.isAlfrescoLoggedIn() || this.isNuxeoLoggedIn();
+  }
+
+  // ---- Session Validation ----
+
+  /**
+   * Validates an Alfresco session by attempting to retrieve current user info.
+   * Returns true if the session is valid, false otherwise.
+   */
+  private validateAlfrescoSession(session: AlfrescoSession): Observable<boolean> {
+    const headers = new HttpHeaders({
+      Authorization: `Basic ${btoa(session.ticket + ':')}`
+    });
+    const url = `${environment.alfrescoUrl}/alfresco/api/-default-/public/alfresco/versions/1/people/-me-`;
+
+    return this.http.get(url, { headers }).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
+  }
+
+  /**
+   * Validates a Nuxeo session by calling the /me endpoint.
+   * Returns true if the session is valid, false otherwise.
+   */
+  private validateNuxeoSession(session: NuxeoSession): Observable<boolean> {
+    const headers = new HttpHeaders({
+      Authorization: `Basic ${session.credentials}`
+    });
+    const url = `${environment.nuxeoUrl}/api/v1/me`;
+
+    return this.http.get(url, { headers }).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
+  }
+
+  /**
+   * Validates all restored sessions on page load.
+   * Automatically logs out invalid sessions.
+   */
+  validateSessions(): Promise<void> {
+    const alfSession = this.alfresco$.getValue();
+    const nuxSession = this.nuxeo$.getValue();
+
+    const checks: Observable<any>[] = [];
+
+    if (alfSession) {
+      checks.push(
+        this.validateAlfrescoSession(alfSession).pipe(
+          tap(valid => {
+            if (!valid) {
+              console.warn('Alfresco session invalid, logging out');
+              this.logoutAlfresco();
+            }
+          })
+        )
+      );
+    }
+
+    if (nuxSession) {
+      checks.push(
+        this.validateNuxeoSession(nuxSession).pipe(
+          tap(valid => {
+            if (!valid) {
+              console.warn('Nuxeo session invalid, logging out');
+              this.logoutNuxeo();
+            }
+          })
+        )
+      );
+    }
+
+    if (checks.length === 0) {
+      return Promise.resolve();
+    }
+
+    return forkJoin(checks).toPromise().then(() => {});
   }
 }
