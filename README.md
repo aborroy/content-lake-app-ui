@@ -47,7 +47,7 @@ The dev server uses `proxy.conf.json`, so it expects the deployment stack to be 
 npm run build
 ```
 
-Production builds use `src/environments/environment.prod.ts`, and the container runtime replaces the `__ALFRESCO_URL__`, `__NUXEO_URL__`, and `__RAG_URL__` placeholders in the compiled bundle at startup.
+Production builds use `src/environments/environment.prod.ts`, and the container runtime replaces the `__ALFRESCO_URL__`, `__NUXEO_URL__`, and `__RAG_URL__` placeholders in the compiled bundle at startup. If those values are missing, or still point at `localhost` while the browser is on a remote host, the app falls back to same-origin proxy paths (`/alfresco`, `/nuxeo`, `/api/rag`).
 
 ## Docker
 

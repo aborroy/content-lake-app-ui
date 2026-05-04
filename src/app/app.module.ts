@@ -23,6 +23,7 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 
 // App
@@ -31,7 +32,7 @@ import { NavbarComponent } from './navbar/navbar.component';
 import { AuthComponent } from './auth/auth.component';
 import { SearchComponent } from './search/search.component';
 import { ResultsComponent } from './results/results.component';
-import { ChatComponent } from './chat/chat.component';
+import { ChatComponent, DeleteSessionDialogComponent } from './chat/chat.component';
 import { PermissionCompareComponent } from './permission-compare/permission-compare.component';
 import { AuthHttpInterceptor } from './interceptors/auth.interceptor';
 
@@ -54,6 +55,7 @@ const routes: Routes = [
     SearchComponent,
     ResultsComponent,
     ChatComponent,
+    DeleteSessionDialogComponent,
     PermissionCompareComponent
   ],
   imports: [
@@ -82,6 +84,7 @@ const routes: Routes = [
     MatChipsModule,
     MatTooltipModule,
     MatExpansionModule,
+    MatDialogModule,
     MatDividerModule
   ],
   providers: [

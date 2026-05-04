@@ -1,4 +1,5 @@
 import { AfterViewChecked, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../services/auth.service';
 import { ChatSessionService, ChatSessionSummary } from '../services/chat-session.service';
 import {
@@ -12,6 +13,21 @@ import {
 } from '../services/rag.service';
 
 let _nextId = 0;
+
+@Component({
+  selector: 'app-delete-session-dialog',
+  template: `
+    <h2 mat-dialog-title>Delete conversation</h2>
+    <mat-dialog-content>
+      <p>This will permanently remove this conversation and all its messages.</p>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button mat-dialog-close>Cancel</button>
+      <button mat-flat-button color="warn" [mat-dialog-close]="true">Delete</button>
+    </mat-dialog-actions>
+  `
+})
+export class DeleteSessionDialogComponent {}
 
 @Component({
   selector: 'app-chat',
@@ -44,14 +60,24 @@ let _nextId = 0;
           </div>
 
           <div class="session-list">
-            <button *ngFor="let s of sessionSummaries; trackBy: trackSession"
-                    type="button"
-                    class="session-item"
-                    [class.active]="s.sessionId === activeSessionId"
-                    (click)="openConversation(s.sessionId)">
-              <span class="session-title">{{ s.title }}</span>
-              <span class="session-meta">{{ s.updatedAt | date:'shortDate' }} · {{ s.messageCount }} msg</span>
-            </button>
+            <div *ngFor="let s of sessionSummaries; trackBy: trackSession"
+                 class="session-row">
+              <button type="button"
+                      class="session-item"
+                      [class.active]="s.sessionId === activeSessionId"
+                      (click)="openConversation(s.sessionId)">
+                <span class="session-title">{{ s.title }}</span>
+                <span class="session-meta">{{ s.updatedAt | date:'shortDate' }} · {{ s.messageCount }} msg</span>
+              </button>
+              <button mat-icon-button
+                      type="button"
+                      class="session-delete"
+                      [disabled]="thinking"
+                      (click)="deleteConversation(s.sessionId, $event)"
+                      matTooltip="Delete conversation">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -300,11 +326,36 @@ let _nextId = 0;
       background: var(--cl-border-strong);
     }
 
+    .session-row {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+    }
+
+    .session-row .session-delete {
+      position: absolute;
+      top: 50%;
+      right: 4px;
+      transform: translateY(-50%);
+      opacity: 0;
+      transition: opacity 120ms ease;
+      color: var(--cl-text-soft);
+      width: 28px;
+      height: 28px;
+      line-height: 28px;
+    }
+
+    .session-row:hover .session-delete {
+      opacity: 1;
+    }
+
     .session-item {
       border: 1px solid var(--cl-border);
       border-radius: 8px;
       background: var(--cl-surface);
       padding: 10px 12px;
+      padding-right: 36px;
+      flex: 1;
       text-align: left;
       cursor: pointer;
       display: flex;
@@ -764,7 +815,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   constructor(
     private auth: AuthService,
     private rag: RagService,
-    private sessions: ChatSessionService
+    private sessions: ChatSessionService,
+    private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
@@ -864,6 +916,24 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.autoScrollEnabled = true;
     this.refreshSummaries();
     this.shouldScroll = true;
+  }
+
+  deleteConversation(sessionId: string, event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.thinking) return;
+    this.dialog.open(DeleteSessionDialogComponent)
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.sessions.deleteSession(sessionId);
+        if (this.activeSessionId === sessionId) {
+          const next = this.sessions.ensureActiveSession();
+          this.activeSessionId = next;
+          this.messages = this.sessions.getMessages(next);
+          this.shouldScroll = true;
+        }
+        this.refreshSummaries();
+      });
   }
 
   onScroll(): void {

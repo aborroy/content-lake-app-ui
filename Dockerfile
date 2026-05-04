@@ -14,10 +14,10 @@ COPY nginx-app.conf /etc/nginx/conf.d/default.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 EXPOSE 80
-# Defaults assume the container is reachable at localhost:4200.
-# The container's own nginx proxies /api/rag, /alfresco/, /nuxeo/
-# to the backend services on the Docker network — no cross-origin issues.
-ENV ALFRESCO_URL=http://localhost:4200
-ENV NUXEO_URL=http://localhost:4200/nuxeo
-ENV RAG_URL=http://localhost:4200/api/rag
+# Default to same-origin proxy paths. The container's own nginx proxies
+# /api/rag, /alfresco/, and /nuxeo/ to the backend services on the Docker
+# network, so browser-side absolute hostnames are unnecessary.
+ENV ALFRESCO_URL=
+ENV NUXEO_URL=/nuxeo
+ENV RAG_URL=/api/rag
 ENTRYPOINT ["/entrypoint.sh"]
