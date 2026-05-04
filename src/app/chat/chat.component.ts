@@ -921,7 +921,13 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   deleteConversation(sessionId: string, event: MouseEvent): void {
     event.stopPropagation();
     if (this.thinking) return;
-    this.dialog.open(DeleteSessionDialogComponent)
+    this.dialog.open(DeleteSessionDialogComponent, {
+      width: '400px',
+      maxWidth: '90vw',
+      position: { top: '100px' },
+      autoFocus: 'dialog',
+      restoreFocus: true
+    })
       .afterClosed()
       .subscribe((confirmed) => {
         if (!confirmed) return;
