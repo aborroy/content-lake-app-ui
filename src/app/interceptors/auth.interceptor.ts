@@ -24,7 +24,7 @@ export class AuthHttpInterceptor implements HttpInterceptor {
   constructor(private auth: AuthService) {}
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    if (!req.url.startsWith(environment.ragUrl)) {
+    if (!this.isRagRequest(req.url)) {
       return next.handle(req);
     }
 
@@ -54,5 +54,17 @@ export class AuthHttpInterceptor implements HttpInterceptor {
     }
 
     return next.handle(req.clone({ headers }));
+  }
+
+  // Match by URL path so that stripped default ports (e.g. :80) don't break
+  // the comparison when ragUrl contains an explicit port.
+  private isRagRequest(url: string): boolean {
+    try {
+      const ragPath = new URL(environment.ragUrl, window.location.origin).pathname;
+      const reqPath = new URL(url, window.location.origin).pathname;
+      return reqPath.startsWith(ragPath);
+    } catch {
+      return url.startsWith(environment.ragUrl);
+    }
   }
 }
