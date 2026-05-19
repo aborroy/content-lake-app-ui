@@ -180,12 +180,10 @@ import { AuthService } from '../services/auth.service';
         <div class="proceed-actions">
           <button mat-raised-button color="primary"
                   class="proceed-button"
-                  [disabled]="!anyLoggedIn"
                   (click)="proceed()">
             <span>Proceed to search</span>
             <mat-icon>arrow_forward</mat-icon>
           </button>
-          <p *ngIf="!anyLoggedIn" class="proceed-hint">Connect to at least one repository to continue.</p>
         </div>
       </section>
 

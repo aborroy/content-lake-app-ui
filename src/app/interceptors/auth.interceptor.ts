@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import {
   HttpEvent, HttpHandler, HttpInterceptor, HttpRequest
 } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../environments/environment';
 
@@ -36,6 +37,16 @@ export class AuthHttpInterceptor implements HttpInterceptor {
     const alfSession = this.auth.getAlfrescoSession();
     const nuxSession = this.auth.getNuxeoSession();
 
+    const handle401 = (source: Observable<HttpEvent<unknown>>) =>
+      source.pipe(
+        catchError(err => {
+          if (err.status === 401) {
+            this.auth.validateSessions();
+          }
+          return throwError(() => err);
+        })
+      );
+
     if (!alfSession && !nuxSession) {
       return next.handle(req);
     }
@@ -53,7 +64,7 @@ export class AuthHttpInterceptor implements HttpInterceptor {
       headers = headers.set('Authorization', `Basic ${nuxSession.credentials}`);
     }
 
-    return next.handle(req.clone({ headers }));
+    return handle401(next.handle(req.clone({ headers })));
   }
 
   // Match by URL path so that stripped default ports (e.g. :80) don't break

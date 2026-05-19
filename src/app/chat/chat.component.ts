@@ -247,11 +247,11 @@ export class DeleteSessionDialogComponent {}
               <input matInput
                      [(ngModel)]="currentQuestion"
                      (keyup.enter)="ask()"
-                     [disabled]="thinking || !anyLoggedIn" />
+                     [disabled]="thinking" />
             </mat-form-field>
             <button mat-raised-button color="primary"
                     class="send-button"
-                    [disabled]="!currentQuestion.trim() || thinking || !anyLoggedIn"
+                    [disabled]="!currentQuestion.trim() || thinking"
                     (click)="ask()">
               <mat-icon>send</mat-icon>
               Send
@@ -839,7 +839,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
   ask(): void {
     const q = this.currentQuestion.trim();
-    if (!q || this.thinking || !this.anyLoggedIn) return;
+    if (!q || this.thinking) return;
 
     const sessionId = this.activeSessionId ?? this.sessions.ensureActiveSession();
     const isFirstTurn = this.messages.length === 0;

@@ -133,7 +133,7 @@ interface SearchContext {
           <button mat-raised-button color="primary"
                   class="search-action"
                   (click)="search()"
-                  [disabled]="loading || !query.trim() || !anyLoggedIn">
+                  [disabled]="loading || !query.trim()">
             <mat-spinner *ngIf="loading" diameter="18"></mat-spinner>
             <span>{{ loading ? 'Searching…' : 'Run search' }}</span>
             <mat-icon *ngIf="!loading">arrow_forward</mat-icon>
@@ -741,7 +741,7 @@ export class SearchComponent {
   }
 
   search(): void {
-    if (!this.query.trim() || !this.anyLoggedIn) return;
+    if (!this.query.trim()) return;
     this.loading = true;
     this.searched = false;
     this.results = [];

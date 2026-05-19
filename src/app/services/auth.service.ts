@@ -24,9 +24,9 @@ export class AuthService {
   readonly nuxeoSession$ = this.nuxeo$.asObservable();
 
   constructor(private http: HttpClient) {
-    const alf = localStorage.getItem('alfrescoSession');
+    const alf = sessionStorage.getItem('alfrescoSession');
     if (alf) this.alfresco$.next(JSON.parse(alf));
-    const nux = localStorage.getItem('nuxeoSession');
+    const nux = sessionStorage.getItem('nuxeoSession');
     if (nux) this.nuxeo$.next(JSON.parse(nux));
 
     // Validate restored sessions asynchronously
@@ -49,13 +49,13 @@ export class AuthService {
         if (!ticket) throw new Error('No ticket in Alfresco response');
         const session: AlfrescoSession = { username, ticket };
         this.alfresco$.next(session);
-        localStorage.setItem('alfrescoSession', JSON.stringify(session));
+        sessionStorage.setItem('alfrescoSession', JSON.stringify(session));
       });
   }
 
   logoutAlfresco(): void {
     this.alfresco$.next(null);
-    localStorage.removeItem('alfrescoSession');
+    sessionStorage.removeItem('alfrescoSession');
   }
 
   getAlfrescoSession(): AlfrescoSession | null {
@@ -84,13 +84,13 @@ export class AuthService {
         const resolvedUsername = resp?.id ?? resp?.username ?? username;
         const session: NuxeoSession = { username: resolvedUsername, credentials };
         this.nuxeo$.next(session);
-        localStorage.setItem('nuxeoSession', JSON.stringify(session));
+        sessionStorage.setItem('nuxeoSession', JSON.stringify(session));
       });
   }
 
   logoutNuxeo(): void {
     this.nuxeo$.next(null);
-    localStorage.removeItem('nuxeoSession');
+    sessionStorage.removeItem('nuxeoSession');
   }
 
   getNuxeoSession(): NuxeoSession | null {
