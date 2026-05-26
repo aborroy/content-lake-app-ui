@@ -1,30 +1,23 @@
 # content-lake-app-ui
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Angular](https://img.shields.io/badge/Angular-18-DD0031.svg)](https://angular.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://docs.docker.com/compose/)
+[![Status](https://img.shields.io/badge/Status-PoC-yellow.svg)]()
+
 Demo Angular application for the Content Lake project. It provides a unified search and chat UI that talks to the RAG service and opens source documents in Alfresco ACA or Nuxeo Web UI.
 
-## Satori adoption status
+## Content Lake Ecosystem
 
-This app follows Hyland's [Satori adoption checklist](https://hyland.atlassian.net/wiki/spaces/HDF/pages/3076359112/Satori+adoption+requirements+and+roadmap):
+Part of the **Content Lake** ecosystem -- a PoC for ingesting Alfresco and Nuxeo content into [hxpr](https://github.com/HylandSoftware/hxpr) for hybrid semantic search and RAG.
 
-| Level | Status | Notes |
-|---|---|---|
-| **Platform baseline** | Angular 18 / Material 18 | Upgraded from 17 |
-| **Level 1 — Tokens & Theme** | M3 `define-theme` in `styles.scss` | Ready for Satori token swap |
-| **Level 2 — Primitives** | Pure Angular Material | No ADF, no Hyland UI |
-| **Level 3 — App Chrome** | Placeholder | Custom navbar; swap for Satori chrome when available |
-| **Devkit — Translation** | `ngx-translate` wired | Strings extracted to `src/assets/i18n/en.json` |
-| **Devkit — Auth** | Custom auth service | Evaluate Satori OIDC when available |
-| **Quality gates** | CI workflow | Blocks `.mat-*` overrides and `!important` |
-
-### To complete Satori integration
-
-1. Install Satori UI packages once access is available:
-   ```bash
-   npm install @hylandsoftware/satori-ui
-   ```
-2. Replace the placeholder palette in `src/styles.scss` with Satori tokens.
-3. Replace the custom navbar with Satori Application Chrome component.
-4. Integrate Satori Devkit auth service (OIDC).
+| Repo | Role |
+|---|---|
+| [content-lake-app](https://github.com/aborroy/content-lake-app) | Java ingestion pipeline and RAG service |
+| [content-lake-app-deployment](https://github.com/aborroy/content-lake-app-deployment) | Docker Compose stack that wires everything together |
+| [alfresco-content-lake-ui](https://github.com/aborroy/alfresco-content-lake-ui) | ACA/ADW extension: semantic search + RAG chat sidebar |
+| **[content-lake-app-ui](https://github.com/aborroy/content-lake-app-ui)** | Standalone demo UI (Alfresco + Nuxeo dual auth) (this repo) |
+| [nuxeo-deployment](https://github.com/aborroy/nuxeo-deployment) | Local Nuxeo + PostgreSQL stack (required for Nuxeo profiles) |
 
 ## Features
 - Alfresco and Nuxeo authentication inputs for demo use.
@@ -33,13 +26,29 @@ This app follows Hyland's [Satori adoption checklist](https://hyland.atlassian.n
 - Deep links that open documents in ACA or Nuxeo Web UI.
 - Docker image with runtime URL substitution for deployment environments.
 
-## Setup
+## Quick Start
+
 ```bash
 npm install
 npm start
 ```
 
-The dev server uses `proxy.conf.json`, so it expects the deployment stack to be reachable on `http://localhost`.
+The dev server uses `proxy.conf.json` and proxies `/api/rag`, `/alfresco`, and `/nuxeo` to
+`http://localhost` by default. The full deployment stack must be running locally (see
+[content-lake-app-deployment](https://github.com/aborroy/content-lake-app-deployment)).
+
+### Environment variables
+
+The Docker image substitutes three placeholders at container startup:
+
+| Placeholder | Purpose | Default (fallback) |
+|---|---|---|
+| `__ALFRESCO_URL__` | Alfresco Repository base URL | same-origin (`/alfresco`) |
+| `__NUXEO_URL__` | Nuxeo base URL | same-origin (`/nuxeo`) |
+| `__RAG_URL__` | RAG service base URL | same-origin (`/api/rag`) |
+
+If a placeholder is unset or points at `localhost` while the browser is on a remote host, the app
+falls back to same-origin proxy paths automatically.
 
 ## Build
 
@@ -56,13 +65,17 @@ The included Dockerfile builds the Angular app and serves it with nginx. The run
 For local deployment via `content-lake-app-deployment`, this repo is expected at the sibling path `../content-lake-app-ui` unless `CONTENT_LAKE_APP_UI_CONTEXT` is overridden.
 
 ## Project structure
-- `src/` – Angular source code.
-- `src/app/` – Application modules, services, components.
-- `src/assets/i18n/` – Translation files (`ngx-translate`).
-- `src/environments/` – Environment variables.
-- `src/styles.scss` – Material 3 theme (Satori-ready) + app design tokens.
-- `angular.json` – Project config (application builder).
-- `tsconfig.json` – TypeScript config.
-- `package.json` – Dependencies.
-- `.npmrc` – Satori package registry config.
-- `.github/workflows/satori-quality-gates.yml` – CI quality gates.
+- `src/` -- Angular source code.
+- `src/app/` -- Application modules, services, components.
+- `src/assets/i18n/` -- Translation files (`ngx-translate`).
+- `src/environments/` -- Environment variables.
+- `src/styles.scss` -- Material 3 theme (Satori-ready) + app design tokens.
+- `angular.json` -- Project config (application builder).
+- `tsconfig.json` -- TypeScript config.
+- `package.json` -- Dependencies.
+- `.npmrc` -- Satori package registry config.
+- `.github/workflows/` -- CI quality gates placeholder (pending Satori package access).
+
+## Satori adoption
+
+See [docs/satori.md](docs/satori.md) for current status and remaining integration steps.
