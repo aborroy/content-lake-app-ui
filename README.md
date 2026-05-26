@@ -1,6 +1,7 @@
 # content-lake-app-ui
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/Node-20-green.svg)](https://nodejs.org/)
 [![Angular](https://img.shields.io/badge/Angular-18-DD0031.svg)](https://angular.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://docs.docker.com/compose/)
 [![Status](https://img.shields.io/badge/Status-PoC-yellow.svg)]()
