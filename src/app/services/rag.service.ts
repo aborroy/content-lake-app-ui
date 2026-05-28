@@ -378,7 +378,7 @@ export class RagService {
   }
 
   private mapResults(resp: SemanticSearchResponse): RagResult[] {
-    return (resp.results ?? []).map(item => ({
+    return (resp?.results ?? []).map(item => ({
       rank: item.rank,
       score: item.score,
       title: item.sourceDocument?.name ?? '(untitled)',

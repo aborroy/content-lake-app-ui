@@ -410,7 +410,9 @@ export class PermissionCompareComponent implements OnChanges {
             this.comparing = false;
           },
           error: err => {
-            this.authError = `Search failed: ${err.status} ${err.statusText}`;
+            this.authError = err?.status > 0
+              ? `Search failed: ${err.status} ${err.statusText}`
+              : `Search failed: ${err?.message ?? 'Unknown error'}`;
             this.comparing = false;
           }
         });

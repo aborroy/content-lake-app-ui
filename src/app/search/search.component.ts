@@ -776,7 +776,9 @@ export class SearchComponent {
           ? 'Authentication failed. Log in again.'
           : err.status === 0
             ? 'Cannot reach the RAG service.'
-            : `Search error: ${err.status} ${err.statusText}`;
+            : err.status > 0
+              ? `Search error: ${err.status} ${err.statusText}`
+              : `Search failed: ${err?.message ?? 'Unknown error'}`;
         this.snackBar.open(msg, 'Dismiss', { duration: 6000 });
       }
     });
