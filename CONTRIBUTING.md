@@ -1,6 +1,6 @@
 # Contributing
 
-This project is part of the **Content Lake** PoC ecosystem. Contributions are welcome.
+This project is part of the **AI Ready Index** PoC ecosystem. Contributions are welcome.
 
 ## Before You Start
 

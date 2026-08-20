@@ -6,11 +6,11 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://docs.docker.com/compose/)
 [![Status](https://img.shields.io/badge/Status-PoC-yellow.svg)]()
 
-Demo Angular application for the Content Lake project. It provides a unified search and chat UI that talks to the RAG service and opens source documents in Alfresco ACA or Nuxeo Web UI.
+Demo Angular application for the AI Ready Index project. It provides a unified search and chat UI that talks to the RAG service and opens source documents in Alfresco ACA or Nuxeo Web UI.
 
-## Content Lake Ecosystem
+## AI Ready Index Ecosystem
 
-Part of the **Content Lake** ecosystem -- a PoC for ingesting Alfresco and Nuxeo content into [hxpr](https://github.com/HylandSoftware/hxpr) for hybrid semantic search and RAG.
+Part of the **AI Ready Index** ecosystem -- a PoC for ingesting Alfresco and Nuxeo content into [hxpr](https://github.com/HylandSoftware/hxpr) for hybrid semantic search and RAG.
 
 | Repo | Role |
 |---|---|

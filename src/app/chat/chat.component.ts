@@ -143,7 +143,7 @@ export class DeleteSessionDialogComponent {}
                   <span class="wd wd-blue"></span>
                   <span class="wd wd-teal"></span>
                 </div>
-                <span class="eyebrow">Ask the lake</span>
+                <span class="eyebrow">Ask the index</span>
                 <h3 class="display-2">Grounded answers from your indexed content.</h3>
                 <p>Ask a question, stream the answer, and expand source evidence below the response.</p>
                 <div class="welcome-badges">
