@@ -23,7 +23,11 @@ Part of the **AI Ready Index** ecosystem -- a PoC for ingesting Alfresco and Nux
 ## Features
 - Alfresco and Nuxeo authentication inputs for demo use.
 - Mixed Alfresco and Nuxeo search results from the RAG service.
+- Faceted search: narrow results by Source and File type with document counts (click to filter, friendly mime labels).
 - Chat UI backed by the RAG streaming endpoint.
+- Answer options: composer toggles to auto-detect filters from the question and to request a structured answer (summary, key points, citations).
+- Citation faithfulness: grounded / unsupported badge and unsupported-claims list when backend verification is enabled.
+- Operational status view (`/status`): hxpr connectivity, per-source document counts, and embedding-model reachability from `/api/status`.
 - Deep links that open documents in ACA or Nuxeo Web UI.
 - Docker image with runtime URL substitution for deployment environments.
 
