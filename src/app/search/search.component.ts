@@ -186,7 +186,7 @@ interface SearchContext {
           <span class="facets-title">Filters</span>
           <button *ngFor="let f of activeFacets" type="button"
                   class="facet-chip active" (click)="toggleFacet(f.property, f.value)">
-            {{ facetLabel(f.property) }}: {{ f.value }}
+            {{ facetLabel(f.property) }}: {{ facetValueLabel(f.property, f.value) }}
             <mat-icon>close</mat-icon>
           </button>
           <button type="button" class="facet-clear" (click)="clearFacets()">Clear all</button>
@@ -197,7 +197,7 @@ interface SearchContext {
                   class="facet-chip"
                   [class.active]="isFacetActive(group.property, bucket.value)"
                   (click)="toggleFacet(group.property, bucket.value)">
-            {{ bucket.value }} <span class="facet-count">{{ bucket.count }}</span>
+            {{ facetValueLabel(group.property, bucket.value) }} <span class="facet-count">{{ bucket.count }}</span>
           </button>
         </div>
       </div>
@@ -910,10 +910,36 @@ export class SearchComponent {
 
   facetLabel(property: string): string {
     if (property === 'cin_sourceId') return 'Source';
+    if (property.toLowerCase().endsWith('mimetype')) return 'File type';
     const segment = property.split('.').pop() ?? property;
-    const spaced = segment.replace(/([A-Z])/g, ' $1').trim();
+    const spaced = segment.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
     return spaced.charAt(0).toUpperCase() + spaced.slice(1);
   }
+
+  /** Human-friendly display for a bucket value (mime types get readable names). */
+  facetValueLabel(property: string, value: string): string {
+    if (property.toLowerCase().endsWith('mimetype')) {
+      return SearchComponent.MIME_LABELS[value] ?? value;
+    }
+    return value;
+  }
+
+  private static readonly MIME_LABELS: Record<string, string> = {
+    'text/plain': 'Plain text',
+    'text/html': 'HTML',
+    'text/csv': 'CSV',
+    'application/pdf': 'PDF',
+    'application/msword': 'Word document',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word document',
+    'application/vnd.ms-excel': 'Excel spreadsheet',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel spreadsheet',
+    'application/vnd.ms-powerpoint': 'PowerPoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
+    'application/rtf': 'Rich text',
+    'application/json': 'JSON',
+    'application/xml': 'XML',
+    'text/xml': 'XML'
+  };
 
   private loadFacets(filter?: string): void {
     const properties = this.rag.facetProperties;

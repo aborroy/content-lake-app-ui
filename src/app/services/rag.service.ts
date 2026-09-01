@@ -215,7 +215,7 @@ export interface RagResult {
 export class RagService {
 
   /** Properties offered in the faceted-search panel (#2). */
-  readonly facetProperties: string[] = ['cin_sourceId', 'cin_ingestProperties.mimeType'];
+  readonly facetProperties: string[] = ['cin_sourceId', 'cin_ingestProperties.source_mimeType'];
 
   constructor(private http: HttpClient, private auth: AuthService) {}
 
