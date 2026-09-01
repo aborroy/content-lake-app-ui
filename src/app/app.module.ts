@@ -34,6 +34,7 @@ import { SearchComponent } from './search/search.component';
 import { ResultsComponent } from './results/results.component';
 import { ChatComponent, DeleteSessionDialogComponent } from './chat/chat.component';
 import { PermissionCompareComponent } from './permission-compare/permission-compare.component';
+import { StatusComponent } from './status/status.component';
 import { AuthHttpInterceptor } from './interceptors/auth.interceptor';
 
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -44,6 +45,7 @@ const routes: Routes = [
   { path: 'login',  component: AuthComponent },
   { path: 'search', component: SearchComponent },
   { path: 'chat',   component: ChatComponent },
+  { path: 'status', component: StatusComponent },
   { path: '**', redirectTo: 'login' }
 ];
 
@@ -56,7 +58,8 @@ const routes: Routes = [
     ResultsComponent,
     ChatComponent,
     DeleteSessionDialogComponent,
-    PermissionCompareComponent
+    PermissionCompareComponent,
+    StatusComponent
   ],
   imports: [
     BrowserModule,

@@ -32,6 +32,10 @@ import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.ser
             <mat-icon>chat</mat-icon>
             <span>Chat</span>
           </a>
+          <a routerLink="/status" routerLinkActive="nav-active" class="nav-link">
+            <mat-icon>monitor_heart</mat-icon>
+            <span>Status</span>
+          </a>
           <a routerLink="/login" routerLinkActive="nav-active" class="nav-link">
             <mat-icon>manage_accounts</mat-icon>
             <span>Connections</span>

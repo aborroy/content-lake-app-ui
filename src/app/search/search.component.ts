@@ -1,8 +1,16 @@
 import { Component } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.service';
 import { CompareResult } from '../permission-compare/permission-compare.component';
-import { ContentSourceType, RagResult, RagService } from '../services/rag.service';
+import { ContentSourceType, FacetBucket, FacetsResponse, RagResult, RagService } from '../services/rag.service';
+
+interface FacetGroup {
+  property: string;
+  label: string;
+  buckets: FacetBucket[];
+}
 
 interface SearchContext {
   query: string;
@@ -170,6 +178,27 @@ interface SearchContext {
             <mat-icon>{{ ctx.sourceFilter === 'alfresco' ? 'storage' : 'folder_open' }}</mat-icon>
             {{ ctx.sourceFilter | titlecase }} only
           </span>
+        </div>
+      </div>
+
+      <div *ngIf="facetGroups.length > 0" class="facets surface-card">
+        <div *ngIf="activeFacets.length > 0" class="active-facets">
+          <span class="facets-title">Filters</span>
+          <button *ngFor="let f of activeFacets" type="button"
+                  class="facet-chip active" (click)="toggleFacet(f.property, f.value)">
+            {{ facetLabel(f.property) }}: {{ f.value }}
+            <mat-icon>close</mat-icon>
+          </button>
+          <button type="button" class="facet-clear" (click)="clearFacets()">Clear all</button>
+        </div>
+        <div *ngFor="let group of facetGroups" class="facet-group">
+          <span class="facet-group-label">{{ group.label }}</span>
+          <button *ngFor="let bucket of group.buckets" type="button"
+                  class="facet-chip"
+                  [class.active]="isFacetActive(group.property, bucket.value)"
+                  (click)="toggleFacet(group.property, bucket.value)">
+            {{ bucket.value }} <span class="facet-count">{{ bucket.count }}</span>
+          </button>
         </div>
       </div>
 
@@ -699,6 +728,64 @@ interface SearchContext {
 
     .compare-section { margin-top: 2px; }
 
+    /* ── Facets (#2) ──────────────────────────────────────── */
+
+    .facets {
+      padding: 16px 20px;
+      border-radius: var(--radius-lg) !important;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .active-facets,
+    .facet-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .facets-title,
+    .facet-group-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--cl-text-soft);
+      margin-right: 4px;
+    }
+
+    .facet-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--cl-border);
+      border-radius: 14px;
+      background: var(--cl-surface);
+      color: var(--cl-text);
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+
+    .facet-chip.active {
+      border-color: rgba(0, 40, 85, 0.35);
+      background: rgba(0, 40, 85, 0.05);
+      color: var(--hy-navy);
+    }
+
+    .facet-chip mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    .facet-count { color: var(--cl-text-soft); font-size: 11px; }
+
+    .facet-clear {
+      border: 0;
+      background: none;
+      color: var(--cl-primary);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
     /* ── Responsive ───────────────────────────────────────── */
 
     @media (max-width: 980px) {
@@ -717,6 +804,10 @@ export class SearchComponent {
   searched = false;
   ctx: SearchContext | null = null;
   lastCompareResult: CompareResult | null = null;
+
+  // #2 faceted search
+  facetGroups: FacetGroup[] = [];
+  activeFacets: { property: string; value: string }[] = [];
 
   constructor(
     private rag: RagService,
@@ -750,14 +841,16 @@ export class SearchComponent {
 
     const t0 = Date.now();
     const sourceType = this.sourceFilter || undefined;
+    const filter = this.buildFacetFilter();
 
     const alfSession: AlfrescoSession | null = this.auth.getAlfrescoSession();
     const nuxSession: NuxeoSession | null = this.auth.getNuxeoSession();
 
-    this.rag.search(this.query, sourceType).subscribe({
+    this.rag.search(this.query, sourceType, filter).subscribe({
       next: results => {
         const elapsed = Date.now() - t0;
         this.results = results;
+        this.loadFacets(filter);
         this.ctx = {
           query: this.query,
           sourceFilter: this.sourceFilter,
@@ -787,6 +880,82 @@ export class SearchComponent {
   openLink(result: RagResult): void {
     const url = result.openInSourceUrl ?? result.url;
     if (url) window.open(url, '_blank');
+  }
+
+  /* -------- #2 faceted search -------- */
+
+  toggleFacet(property: string, value: string): void {
+    const idx = this.activeFacets.findIndex((f) => f.property === property && f.value === value);
+    if (idx >= 0) {
+      this.activeFacets.splice(idx, 1);
+    } else {
+      this.activeFacets.push({ property, value });
+    }
+    if (this.query.trim()) {
+      this.search();
+    }
+  }
+
+  isFacetActive(property: string, value: string): boolean {
+    return this.activeFacets.some((f) => f.property === property && f.value === value);
+  }
+
+  clearFacets(): void {
+    if (this.activeFacets.length === 0) return;
+    this.activeFacets = [];
+    if (this.query.trim()) {
+      this.search();
+    }
+  }
+
+  facetLabel(property: string): string {
+    if (property === 'cin_sourceId') return 'Source';
+    const segment = property.split('.').pop() ?? property;
+    const spaced = segment.replace(/([A-Z])/g, ' $1').trim();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  }
+
+  private loadFacets(filter?: string): void {
+    const properties = this.rag.facetProperties;
+    if (!properties.length) {
+      this.facetGroups = [];
+      return;
+    }
+    const sourceType = this.sourceFilter || undefined;
+
+    forkJoin(
+      properties.map((property) =>
+        this.rag.facets({
+          property,
+          topN: 10,
+          ...(filter ? { filter } : {}),
+          ...(sourceType ? { sourceType } : {})
+        }).pipe(catchError(() => of({ property, buckets: [] } as FacetsResponse)))
+      )
+    ).subscribe((responses) => {
+      this.facetGroups = responses
+        .filter((r) => Array.isArray(r.buckets) && r.buckets.length > 0)
+        .map((r) => ({ property: r.property, label: this.facetLabel(r.property), buckets: r.buckets }));
+    });
+  }
+
+  private buildFacetFilter(): string | undefined {
+    if (this.activeFacets.length === 0) return undefined;
+    const byProperty = new Map<string, string[]>();
+    for (const facet of this.activeFacets) {
+      const clauses = byProperty.get(facet.property) ?? [];
+      clauses.push(`${facet.property} = '${this.escapeHxql(facet.value)}'`);
+      byProperty.set(facet.property, clauses);
+    }
+    const combined: string[] = [];
+    for (const clauses of byProperty.values()) {
+      combined.push(clauses.length > 1 ? `(${clauses.join(' OR ')})` : clauses[0]);
+    }
+    return combined.join(' AND ');
+  }
+
+  private escapeHxql(value: string): string {
+    return value.replace(/'/g, "''");
   }
 
   onCompareComplete(result: CompareResult): void {

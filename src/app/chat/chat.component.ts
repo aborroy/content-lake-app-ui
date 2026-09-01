@@ -123,6 +123,17 @@ export class DeleteSessionDialogComponent {}
                 </mat-button-toggle>
               </mat-button-toggle-group>
 
+              <label class="feature-toggle" [class.on]="inferFilters"
+                     matTooltip="Let the assistant infer filters (date, type, path) from your question">
+                <input type="checkbox" [(ngModel)]="inferFilters" [disabled]="thinking" />
+                Auto filters
+              </label>
+              <label class="feature-toggle" [class.on]="structuredMode"
+                     matTooltip="Return a structured answer: summary, key points, citations">
+                <input type="checkbox" [(ngModel)]="structuredMode" [disabled]="thinking" />
+                Structured
+              </label>
+
               <button mat-stroked-button type="button"
                       class="sidebar-action"
                       (click)="newConversation()"
@@ -194,6 +205,34 @@ export class DeleteSessionDialogComponent {}
                     <mat-icon>schedule</mat-icon>
                     {{ msg.totalMs }}ms
                   </span>
+                </div>
+
+                <div *ngIf="!msg.loading && !msg.error && msg.structured" class="structured-block">
+                  <div class="structured-summary">{{ msg.structured.summary }}</div>
+                  <ul *ngIf="msg.structured.keyPoints?.length" class="structured-points">
+                    <li *ngFor="let kp of msg.structured.keyPoints">{{ kp }}</li>
+                  </ul>
+                  <div *ngIf="msg.structured.citations?.length" class="structured-citations">
+                    <div *ngFor="let cit of msg.structured.citations" class="structured-citation">
+                      <span class="citation-source">{{ cit.sourceName }}</span>
+                      <span class="citation-quote">{{ cit.quote }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div *ngIf="!msg.loading && !msg.error && msg.verified !== undefined"
+                     class="faithfulness"
+                     [class.ok]="msg.verified"
+                     [class.warn]="!msg.verified">
+                  <mat-icon>{{ msg.verified ? 'verified' : 'report_problem' }}</mat-icon>
+                  {{ msg.verified ? 'Grounded in the cited sources' : 'Some claims are not supported by the sources' }}
+                </div>
+                <div *ngIf="!msg.loading && !msg.error && msg.unsupportedClaims && msg.unsupportedClaims.length"
+                     class="unsupported">
+                  <div class="unsupported-title">Unsupported claims</div>
+                  <ul>
+                    <li *ngFor="let claim of msg.unsupportedClaims">{{ claim }}</li>
+                  </ul>
                 </div>
 
                 <div *ngIf="!msg.loading && !msg.error && msg.sources && msg.sources.length > 0" class="sources-section">
@@ -632,6 +671,79 @@ export class DeleteSessionDialogComponent {}
 
     /* ---- Source citations ---- */
 
+    .feature-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cl-text-soft);
+      border: 1px solid var(--cl-border);
+      border-radius: 14px;
+      padding: 4px 10px;
+      cursor: pointer;
+      user-select: none;
+      min-height: 40px;
+    }
+
+    .feature-toggle.on {
+      border-color: rgba(0, 40, 85, 0.35);
+      color: var(--hy-navy);
+      background: rgba(0, 40, 85, 0.05);
+    }
+
+    .structured-block {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--cl-border);
+      border-radius: 8px;
+      background: var(--hy-gray-50);
+    }
+
+    .structured-summary { font-weight: 600; color: var(--cl-text); }
+
+    .structured-points {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: var(--cl-text);
+    }
+
+    .structured-citations {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .structured-citation { font-size: 12px; color: var(--cl-text-soft); }
+    .citation-source { font-weight: 600; margin-right: 6px; }
+    .citation-quote { font-style: italic; }
+
+    .faithfulness {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+
+    .faithfulness mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .faithfulness.ok { color: var(--cl-success); background: rgba(46, 125, 50, 0.1); }
+    .faithfulness.warn { color: var(--cl-warning); background: rgba(196, 85, 0, 0.12); }
+
+    .unsupported {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--cl-warning);
+    }
+
+    .unsupported-title { font-weight: 600; }
+    .unsupported ul { margin: 4px 0 0; padding-left: 18px; }
+
     .sources-section { margin-top: 12px; }
 
     .sources-toggle {
@@ -805,6 +917,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   sessionSummaries: ChatSessionSummary[] = [];
   currentQuestion = '';
   selectedSourceType: ContentSourceType | '' = '';
+  inferFilters = false;
+  structuredMode = false;
   thinking = false;
   activeSessionId: string | null = null;
 
@@ -886,7 +1000,9 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     const opts: RagPromptOptions = {
       sessionId,
       resetSession: isFirstTurn,
-      ...(this.selectedSourceType ? { sourceType: this.selectedSourceType } : {})
+      ...(this.selectedSourceType ? { sourceType: this.selectedSourceType } : {}),
+      ...(this.inferFilters ? { inferFilters: true } : {}),
+      ...(this.structuredMode ? { responseFormat: 'STRUCTURED' as const } : {})
     };
 
     this.rag.streamPrompt(q, opts).subscribe({
@@ -1031,6 +1147,9 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     msg.searchTimeMs = response.searchTimeMs;
     msg.generationTimeMs = response.generationTimeMs;
     msg.sources = this.mergeSources(response.sources ?? []);
+    msg.verified = response.verified;
+    msg.unsupportedClaims = response.unsupportedClaims;
+    msg.structured = response.structured;
     msg.error = undefined;
   }
 

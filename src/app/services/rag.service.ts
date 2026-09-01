@@ -13,7 +13,22 @@ interface SemanticSearchRequest {
   topK?: number;
   minScore?: number;
   sourceType?: ContentSourceType;
+  filter?: string;
 }
+
+// ---- Faceted search (#2) ----
+
+export interface FacetsRequest {
+  property: string;
+  filter?: string;
+  sourceType?: ContentSourceType;
+  searchTerm?: string;
+  topN?: number;
+}
+
+export interface FacetBucket { value: string; count: number; }
+
+export interface FacetsResponse { property: string; buckets: FacetBucket[]; }
 
 interface SearchResultSourceDocument {
   documentId: string;
@@ -45,6 +60,8 @@ interface SemanticSearchResponse {
 
 // ---- RAG Prompt (Q&A) ----
 
+export type RagResponseFormat = 'TEXT' | 'STRUCTURED';
+
 export interface RagPromptRequest {
   question: string;
   sessionId?: string;
@@ -56,6 +73,8 @@ export interface RagPromptRequest {
   embeddingType?: string;
   systemPrompt?: string;
   includeContext?: boolean;
+  inferFilters?: boolean;
+  responseFormat?: RagResponseFormat;
 }
 
 export interface RagPromptOptions {
@@ -67,6 +86,8 @@ export interface RagPromptOptions {
   sourceType?: ContentSourceType;
   systemPrompt?: string;
   includeContext?: boolean;
+  inferFilters?: boolean;
+  responseFormat?: RagResponseFormat;
 }
 
 export interface PromptSource {
@@ -79,6 +100,14 @@ export interface PromptSource {
   chunkText: string;
   score: number;
   openInSourceUrl?: string;
+}
+
+export interface Citation { sourceName: string; quote: string; }
+
+export interface StructuredAnswer {
+  summary: string;
+  keyPoints: string[];
+  citations: Citation[];
 }
 
 export interface RagPromptResponse {
@@ -94,6 +123,9 @@ export interface RagPromptResponse {
   totalTimeMs: number;
   sourcesUsed: number;
   sources: PromptSource[];
+  verified?: boolean;
+  unsupportedClaims?: string[];
+  structured?: StructuredAnswer;
 }
 
 export type RagPromptStreamEvent =
@@ -131,6 +163,20 @@ export interface ChatMessage {
   sources?: MergedDocument[];
   loading?: boolean;
   error?: string;
+  verified?: boolean;
+  unsupportedClaims?: string[];
+  structured?: StructuredAnswer;
+}
+
+// ---- Operational status (#6) ----
+
+export interface ModelRunnerStatus { status: string; url?: string; }
+
+export interface StatusResponse {
+  hxprStatus: string;
+  totalDocuments: number;
+  sourceCounts: Record<string, number>;
+  embeddingModel: ModelRunnerStatus;
 }
 
 // ---- Health ----
@@ -168,15 +214,32 @@ export interface RagResult {
 @Injectable({ providedIn: 'root' })
 export class RagService {
 
+  /** Properties offered in the faceted-search panel (#2). */
+  readonly facetProperties: string[] = ['cin_sourceId', 'cin_ingestProperties.mimeType'];
+
   constructor(private http: HttpClient, private auth: AuthService) {}
 
-  search(query: string, sourceType?: ContentSourceType): Observable<RagResult[]> {
+  search(query: string, sourceType?: ContentSourceType, filter?: string): Observable<RagResult[]> {
     const body: SemanticSearchRequest = { query, topK: 10 };
     if (sourceType) body.sourceType = sourceType;
+    if (filter) body.filter = filter;
 
     return this.http
       .post<SemanticSearchResponse>(`${environment.ragUrl}/search/semantic`, body)
       .pipe(map(resp => this.mapResults(resp)));
+  }
+
+  /** Faceted search (#2): top property values with document counts. */
+  facets(request: FacetsRequest): Observable<FacetsResponse> {
+    return this.http.post<FacetsResponse>(`${environment.ragUrl}/search/facets`, request);
+  }
+
+  /** Operational status snapshot (#6). /api/status is a sibling of /api/rag. */
+  getStatus(): Observable<StatusResponse> {
+    const statusUrl = /\/api\/rag\/?$/.test(environment.ragUrl)
+      ? environment.ragUrl.replace(/\/api\/rag\/?$/, '/api/status')
+      : `${environment.ragUrl}/../status`;
+    return this.http.get<StatusResponse>(statusUrl);
   }
 
   /**
@@ -367,7 +430,10 @@ export class RagService {
       generationTimeMs: typeof c.generationTimeMs === 'number' ? c.generationTimeMs : 0,
       totalTimeMs: typeof c.totalTimeMs === 'number' ? c.totalTimeMs : 0,
       sourcesUsed: typeof c.sourcesUsed === 'number' ? c.sourcesUsed : (Array.isArray(c.sources) ? c.sources.length : 0),
-      sources: Array.isArray(c.sources) ? c.sources : []
+      sources: Array.isArray(c.sources) ? c.sources : [],
+      verified: typeof c.verified === 'boolean' ? c.verified : undefined,
+      unsupportedClaims: Array.isArray(c.unsupportedClaims) ? c.unsupportedClaims : undefined,
+      structured: (c.structured && typeof c.structured === 'object') ? c.structured : undefined
     };
   }
 
