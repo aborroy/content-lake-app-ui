@@ -811,6 +811,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   private shouldScroll = false;
   private autoScrollEnabled = true;
   private streamBuffers = new Map<string, string>();
+  private lastTokenPersistMs = 0;
+  private static readonly TOKEN_PERSIST_INTERVAL_MS = 400;
 
   constructor(
     private auth: AuthService,
@@ -822,8 +824,30 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   ngOnInit(): void {
     this.activeSessionId = this.sessions.ensureActiveSession();
     this.messages = this.sessions.getMessages(this.activeSessionId);
+    this.healInterruptedMessages();
     this.refreshSummaries();
     this.shouldScroll = true;
+  }
+
+  /**
+   * Clears the `loading` flag on assistant messages rehydrated from storage so
+   * a stream interrupted by a reload does not leave a permanent "Thinking..."
+   * spinner with no request running.
+   */
+  private healInterruptedMessages(): void {
+    let changed = false;
+    for (const msg of this.messages) {
+      if (msg.role === 'assistant' && msg.loading) {
+        msg.loading = false;
+        changed = true;
+        if (!msg.content?.trim() && !msg.error) {
+          msg.error = 'Response interrupted before it completed. Please ask again.';
+        }
+      }
+    }
+    if (changed) {
+      this.persist();
+    }
   }
 
   ngAfterViewChecked(): void {
@@ -856,6 +880,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.currentQuestion = '';
     this.thinking = true;
     this.shouldScroll = true;
+    this.lastTokenPersistMs = 0;
     this.persist();
 
     const opts: RagPromptOptions = {
@@ -871,7 +896,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
           this.streamBuffers.set(assistantMsg.id, buf);
           assistantMsg.content = buf;
           this.shouldScroll = this.autoScrollEnabled;
-          this.persist();
+          this.throttlePersist();
           return;
         }
         if (event.type === 'metadata') {
@@ -913,6 +938,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.activeSessionId = sessionId;
     this.sessions.activateSession(sessionId);
     this.messages = this.sessions.getMessages(sessionId);
+    this.healInterruptedMessages();
     this.autoScrollEnabled = true;
     this.refreshSummaries();
     this.shouldScroll = true;
@@ -989,7 +1015,12 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   }
 
   private applyResponse(msg: ChatMessage, response: RagPromptResponse): void {
-    if (response.sessionId) this.activeSessionId = response.sessionId;
+    if (response.sessionId && response.sessionId !== this.activeSessionId) {
+      if (this.activeSessionId) {
+        this.sessions.renameSession(this.activeSessionId, response.sessionId);
+      }
+      this.activeSessionId = response.sessionId;
+    }
     if (response.answer) {
       msg.content = response.answer;
       this.streamBuffers.delete(msg.id);
@@ -1037,6 +1068,19 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     if (this.activeSessionId) {
       this.sessions.saveMessages(this.activeSessionId, this.messages);
       this.refreshSummaries();
+    }
+  }
+
+  /**
+   * Persists at most once per interval while streaming, so a long answer does
+   * not re-serialize the whole session store on every token. Terminal events
+   * persist the final state unconditionally.
+   */
+  private throttlePersist(): void {
+    const now = Date.now();
+    if (now - this.lastTokenPersistMs >= ChatComponent.TOKEN_PERSIST_INTERVAL_MS) {
+      this.lastTokenPersistMs = now;
+      this.persist();
     }
   }
 

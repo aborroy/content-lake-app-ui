@@ -73,6 +73,31 @@ export class ChatSessionService {
     this.persist();
   }
 
+  /**
+   * Migrates a session record to the id assigned by the backend so a chat that
+   * started under a UI-generated id does not fork into a second orphaned
+   * session on the next save.
+   */
+  renameSession(oldSessionId: string, newSessionId: string): void {
+    if (!oldSessionId || !newSessionId || oldSessionId === newSessionId) {
+      this.state.activeSessionId = newSessionId || this.state.activeSessionId;
+      return;
+    }
+    const session = this.find(oldSessionId);
+    if (!session) {
+      this.state.activeSessionId = newSessionId;
+      this.persist();
+      return;
+    }
+    if (this.find(newSessionId)) {
+      this.state.sessions = this.state.sessions.filter((s) => s.sessionId !== oldSessionId);
+    } else {
+      session.sessionId = newSessionId;
+    }
+    this.state.activeSessionId = newSessionId;
+    this.persist();
+  }
+
   deleteSession(sessionId: string): void {
     this.state.sessions = this.state.sessions.filter((s) => s.sessionId !== sessionId);
     if (this.state.activeSessionId === sessionId) {
