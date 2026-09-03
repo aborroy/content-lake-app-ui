@@ -6,6 +6,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../environments/environment';
+import { resolveStatusUrl } from '../utils/api-paths';
 
 /**
  * Attaches authentication headers to all outbound RAG service requests.
@@ -17,7 +18,9 @@ import { environment } from '../../environments/environment';
  * - Nuxeo only            → Authorization: Basic base64(user:pass)
  *   The backend MultiSourceAuthenticationProvider tries Alfresco (fails) then falls back to Nuxeo.
  *
- * Requests not targeting the RAG service are passed through unchanged.
+ * Requests not targeting the RAG service are passed through unchanged. "Targeting the RAG service"
+ * covers everything under the RAG base path plus the operational status endpoint, which sits beside
+ * it rather than under it.
  */
 @Injectable()
 export class AuthHttpInterceptor implements HttpInterceptor {
@@ -68,14 +71,16 @@ export class AuthHttpInterceptor implements HttpInterceptor {
   }
 
   // Match by URL path so that stripped default ports (e.g. :80) don't break
-  // the comparison when ragUrl contains an explicit port.
+  // the comparison when ragUrl contains an explicit port. /api/status is authenticated like the
+  // rest of the API but is a sibling of /api/rag, so a prefix test alone misses it.
   private isRagRequest(url: string): boolean {
     try {
       const ragPath = new URL(environment.ragUrl, window.location.origin).pathname;
+      const statusPath = new URL(resolveStatusUrl(), window.location.origin).pathname;
       const reqPath = new URL(url, window.location.origin).pathname;
-      return reqPath.startsWith(ragPath);
+      return reqPath.startsWith(ragPath) || reqPath === statusPath;
     } catch {
-      return url.startsWith(environment.ragUrl);
+      return url.startsWith(environment.ragUrl) || url === resolveStatusUrl();
     }
   }
 }

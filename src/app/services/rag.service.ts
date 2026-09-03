@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { resolveStatusUrl } from '../utils/api-paths';
 import { AuthService } from './auth.service';
 
 // ---- API response types (match backend SemanticSearchResponse) ----
@@ -236,10 +237,7 @@ export class RagService {
 
   /** Operational status snapshot (#6). /api/status is a sibling of /api/rag. */
   getStatus(): Observable<StatusResponse> {
-    const statusUrl = /\/api\/rag\/?$/.test(environment.ragUrl)
-      ? environment.ragUrl.replace(/\/api\/rag\/?$/, '/api/status')
-      : `${environment.ragUrl}/../status`;
-    return this.http.get<StatusResponse>(statusUrl);
+    return this.http.get<StatusResponse>(resolveStatusUrl());
   }
 
   /**
