@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import {
   HttpEvent, HttpHandler, HttpInterceptor, HttpRequest
 } from '@angular/common/http';
@@ -25,7 +25,19 @@ import { resolveStatusUrl } from '../utils/api-paths';
 @Injectable()
 export class AuthHttpInterceptor implements HttpInterceptor {
 
-  constructor(private auth: AuthService) {}
+  constructor(private injector: Injector) {}
+
+  /**
+   * Resolved per request instead of injected.
+   *
+   * AuthService validates restored sessions over HTTP from its own constructor, so the first
+   * request of the app's life can be issued while AuthService is still being built. Injecting it
+   * here makes this singleton capture that half-built instance and keep it forever, and every later
+   * request then dies on it with "getAlfrescoSession is not a function" before it is even sent.
+   */
+  private get auth(): AuthService {
+    return this.injector.get(AuthService);
+  }
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     if (!this.isRagRequest(req.url)) {

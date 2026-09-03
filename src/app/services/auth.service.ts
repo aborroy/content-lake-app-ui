@@ -29,8 +29,10 @@ export class AuthService {
     const nux = sessionStorage.getItem('nuxeoSession');
     if (nux) this.nuxeo$.next(JSON.parse(nux));
 
-    // Validate restored sessions asynchronously
-    this.validateSessions();
+    // Deferred to a microtask on purpose: validation goes over HTTP, which builds the interceptor
+    // chain, and the auth interceptor needs this instance. Firing it from the constructor makes that
+    // resolution re-enter a half-built AuthService.
+    Promise.resolve().then(() => this.validateSessions());
   }
 
   // ---- Alfresco ----
