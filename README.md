@@ -8,6 +8,10 @@
 
 Demo Angular application for the AI Ready Index project. It provides a unified search and chat UI that talks to the RAG service and opens source documents in Alfresco ACA or Nuxeo Web UI.
 
+> **This is a demo application, not a reference authentication implementation.** The sign-in screen
+> exists to show dual-source permission filtering end to end. Do not copy its authentication flow
+> into a production application. See [Authentication and sessions](#authentication-and-sessions).
+
 ## AI Ready Index Ecosystem
 
 Part of the **AI Ready Index** ecosystem -- a PoC for ingesting Alfresco and Nuxeo content into [hxpr](https://github.com/HylandSoftware/hxpr) for hybrid semantic search and RAG.
@@ -30,6 +34,24 @@ Part of the **AI Ready Index** ecosystem -- a PoC for ingesting Alfresco and Nux
 - Operational status view (`/status`): hxpr connectivity, per-source document counts, and embedding-model reachability from `/api/status`.
 - Deep links that open documents in ACA or Nuxeo Web UI.
 - Docker image with runtime URL substitution for deployment environments.
+
+## Authentication and sessions
+
+The two repositories are authenticated independently, and the two sessions are deliberately not
+handled the same way.
+
+| Source | Held as | Survives a page reload | Why |
+|---|---|---|---|
+| Alfresco | `{username, ticket}` in `sessionStorage` | Yes | An Alfresco ticket is revocable and scoped, so persisting it is an acceptable demo trade |
+| Nuxeo | `{username, credentials}` in memory only | No | `credentials` is `base64(user:pass)`, a reusable secret that nothing can revoke short of a password change, so it never reaches web storage |
+
+Reloading the page therefore keeps you connected to Alfresco but ends the Nuxeo session, and you
+connect to Nuxeo again. That is the intended behaviour.
+
+The Nuxeo credential cannot be replaced with a token here: the RAG service's dual-source path
+requires `Authorization: Basic base64(TICKET_xxx:)` together with
+`X-Nuxeo-Authorization: Basic base64(user:pass)` on the same request, and querying both repositories
+at once is the point of this UI. A Nuxeo token is accepted only on the single-source path.
 
 ## Quick Start
 
@@ -63,6 +85,13 @@ npm run build
 
 Production builds use `src/environments/environment.prod.ts`, and the container runtime replaces the `__ALFRESCO_URL__`, `__NUXEO_URL__`, and `__RAG_URL__` placeholders in the compiled bundle at startup. If those values are missing, or still point at `localhost` while the browser is on a remote host, the app falls back to same-origin proxy paths (`/alfresco`, `/nuxeo`, `/api/rag`).
 
+## Test
+
+```bash
+npm test              # Karma + Jasmine, watch mode
+npm run test:ci       # single ChromeHeadless run
+```
+
 ## Docker
 
 The included Dockerfile builds the Angular app and serves it with nginx. The runtime container proxies `/api/rag`, `/alfresco`, and `/nuxeo` so the browser stays same-origin.
@@ -75,8 +104,9 @@ For local deployment via `content-lake-app-deployment`, this repo is expected at
 - `src/assets/i18n/` -- Translation files (`ngx-translate`).
 - `src/environments/` -- Environment variables.
 - `src/styles.scss` -- Material 3 theme (Satori-ready) + app design tokens.
-- `angular.json` -- Project config (application builder).
+- `angular.json` -- Project config (application builder, Karma test target).
 - `tsconfig.json` -- TypeScript config.
+- `tsconfig.spec.json` -- TypeScript config for unit tests.
 - `package.json` -- Dependencies.
 - `.npmrc` -- Satori package registry config.
 - `.github/workflows/` -- CI quality gates placeholder (pending Satori package access).

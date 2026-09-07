@@ -11,11 +11,22 @@ export interface AlfrescoSession {
 
 export interface NuxeoSession {
   username: string;
-  credentials: string;  // base64(user:pass) — sent as X-Nuxeo-Authorization: Basic <credentials>
+  credentials: string;  // base64(user:pass), sent as X-Nuxeo-Authorization: Basic <credentials>
 }
 
+/**
+ * Holds the two repository sessions this demo UI can establish.
+ *
+ * The two sources are treated asymmetrically on purpose. An Alfresco ticket is revocable and
+ * scoped, so it survives a reload in `sessionStorage`. A Nuxeo session is a reusable
+ * base64(user:pass) credential that rag-service requires on the wire for dual-source queries, and
+ * nothing can revoke it short of changing the password, so it is held in memory only and a reload
+ * ends it.
+ */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+
+  private static readonly NUXEO_SESSION_KEY = 'nuxeoSession';
 
   private alfresco$ = new BehaviorSubject<AlfrescoSession | null>(null);
   private nuxeo$ = new BehaviorSubject<NuxeoSession | null>(null);
@@ -26,8 +37,10 @@ export class AuthService {
   constructor(private http: HttpClient) {
     const alf = sessionStorage.getItem('alfrescoSession');
     if (alf) this.alfresco$.next(JSON.parse(alf));
-    const nux = sessionStorage.getItem('nuxeoSession');
-    if (nux) this.nuxeo$.next(JSON.parse(nux));
+
+    // The Nuxeo session is deliberately not rehydrated, because it is never written. Clearing the
+    // key here drops one left behind by an older build of this UI that did persist it.
+    sessionStorage.removeItem(AuthService.NUXEO_SESSION_KEY);
 
     // Deferred to a microtask on purpose: validation goes over HTTP, which builds the interceptor
     // chain, and the auth interceptor needs this instance. Firing it from the constructor makes that
@@ -64,7 +77,7 @@ export class AuthService {
     return this.alfresco$.getValue();
   }
 
-  /** @deprecated Use getAlfrescoSession().ticket — kept for backward compat with rag.service.ts */
+  /** @deprecated Use getAlfrescoSession().ticket, kept for backward compat with rag.service.ts */
   getAlfrescoToken(): string | undefined {
     return this.alfresco$.getValue()?.ticket;
   }
@@ -73,7 +86,10 @@ export class AuthService {
 
   /**
    * Validates Nuxeo credentials by calling /api/v1/me with Basic auth.
-   * Stores the base64(user:pass) for use in X-Nuxeo-Authorization headers.
+   *
+   * The resulting base64(user:pass) is kept in memory for the lifetime of the page, because
+   * rag-service's dual-source path requires it on every request as X-Nuxeo-Authorization. It is
+   * never written to web storage, so a reload ends the Nuxeo half of the session.
    */
   loginNuxeo(username: string, password: string): Promise<void> {
     const credentials = btoa(`${username}:${password}`);
@@ -84,27 +100,24 @@ export class AuthService {
       .toPromise()
       .then(resp => {
         const resolvedUsername = resp?.id ?? resp?.username ?? username;
-        const session: NuxeoSession = { username: resolvedUsername, credentials };
-        this.nuxeo$.next(session);
-        sessionStorage.setItem('nuxeoSession', JSON.stringify(session));
+        this.nuxeo$.next({ username: resolvedUsername, credentials });
       });
   }
 
   logoutNuxeo(): void {
     this.nuxeo$.next(null);
-    sessionStorage.removeItem('nuxeoSession');
   }
 
   getNuxeoSession(): NuxeoSession | null {
     return this.nuxeo$.getValue();
   }
 
-  /** @deprecated Use getNuxeoSession().credentials — kept for backward compat with rag.service.ts */
+  /** @deprecated Use getNuxeoSession().credentials, kept for backward compat with rag.service.ts */
   getNuxeoToken(): string | undefined {
     return this.nuxeo$.getValue()?.credentials;
   }
 
-  // ---- Temporary auth (comparison mode — does NOT store to session) ----
+  // ---- Temporary auth (comparison mode, does NOT store to session) ----
 
   /**
    * Authenticates against Alfresco and returns the ticket + resolved username
