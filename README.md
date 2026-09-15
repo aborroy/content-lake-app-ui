@@ -6,15 +6,15 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://docs.docker.com/compose/)
 [![Status](https://img.shields.io/badge/Status-PoC-yellow.svg)]()
 
-Demo Angular application for the AI Ready Index project. It provides a unified search and chat UI that talks to the RAG service and opens source documents in Alfresco ACA or Nuxeo Web UI.
+Demo Angular application for the AI Ready Content Hub project (ARCH). It provides a unified search and chat UI that talks to the RAG service and opens source documents in Alfresco ACA or Nuxeo Web UI.
 
 > **This is a demo application, not a reference authentication implementation.** The sign-in screen
 > exists to show dual-source permission filtering end to end. Do not copy its authentication flow
 > into a production application. See [Authentication and sessions](#authentication-and-sessions).
 
-## AI Ready Index Ecosystem
+## AI Ready Content Hub Ecosystem
 
-Part of the **AI Ready Index** ecosystem -- a PoC for ingesting Alfresco and Nuxeo content into [hxpr](https://github.com/HylandSoftware/hxpr) for hybrid semantic search and RAG.
+Part of the **AI Ready Content Hub** ecosystem -- a PoC for ingesting Alfresco and Nuxeo content into [hxpr](https://github.com/HylandSoftware/hxpr) for hybrid semantic search and RAG.
 
 | Repo | Role |
 |---|---|

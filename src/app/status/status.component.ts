@@ -13,7 +13,7 @@ import { RagService, StatusResponse } from '../services/rag.service';
       <div class="status-header">
         <div>
           <span class="eyebrow">Operations</span>
-          <h1 class="display-2">Content Lake status</h1>
+          <h1 class="display-2">AI Ready Content Hub status</h1>
         </div>
         <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading">
           <mat-icon>refresh</mat-icon>

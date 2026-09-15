@@ -1,6 +1,6 @@
 {
   "APP": {
-    "TITLE": "AI Ready Index",
+    "TITLE": "AI Ready Content Hub",
     "SUBTITLE": "Readable multi-source search and RAG"
   },
   "NAV": {
@@ -85,7 +85,7 @@
     "CONNECT_REPO": "Connect a repository",
     "SESSION_AWARE": "Session-aware retrieval enabled",
     "ALL": "All",
-    "WELCOME_HEADING": "Grounded answers from your AI Ready Index",
+    "WELCOME_HEADING": "Grounded answers from your content",
     "WELCOME_DESCRIPTION": "Ask a question, stream the answer, and expand source evidence below the response.",
     "CROSS_SOURCE": "Cross-source retrieval",
     "INLINE_CITATIONS": "Inline citations",
