@@ -1,0 +1,132 @@
+import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { firstValueFrom } from 'rxjs';
+
+import { ContentSourceCatalogService, ContentSourceOption } from './content-source-catalog.service';
+
+const STATUS_URL = '/api/status';
+
+/** A `/api/status` body carrying only what the catalogue reads. */
+function status(sourceCounts: Record<string, number>): unknown {
+  return {
+    hxprStatus: 'UP',
+    totalDocuments: Object.values(sourceCounts).reduce((a, b) => a + b, 0),
+    sourceCounts,
+    embeddingModel: { status: 'UP' }
+  };
+}
+
+describe('ContentSourceCatalogService', () => {
+
+  let httpMock: HttpTestingController;
+  let service: ContentSourceCatalogService;
+
+  beforeEach(() => {
+    sessionStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+    service = TestBed.inject(ContentSourceCatalogService);
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  /** Resolves the option list, answering the status request with `sourceCounts`. */
+  async function optionsFor(sourceCounts: Record<string, number>): Promise<ContentSourceOption[]> {
+    const pending = firstValueFrom(service.options());
+    httpMock.expectOne(STATUS_URL).flush(status(sourceCounts));
+    return pending;
+  }
+
+  it('offersEverySourceTypeTheIndexHoldsIncludingOnesThisBuildDoesNotKnow', async () => {
+    const options = await optionsFor({
+      'alfresco:acs-uuid': 120,
+      'nuxeo:prod': 40,
+      'cmis:docmgr': 12,
+      'sample-directory:local': 3
+    });
+
+    expect(options.map(o => o.key)).toEqual(['alfresco', 'nuxeo', 'cmis', 'sample-directory']);
+    expect(options.map(o => o.label))
+      .toEqual(['Alfresco', 'Nuxeo', 'CMIS', 'Sample Directory']);
+    expect(options.map(o => o.count)).toEqual([120, 40, 12, 3]);
+
+    // Only Alfresco and Nuxeo have a login of their own; anything else is offered outright.
+    expect(options.filter(o => o.loginGated).map(o => o.key)).toEqual(['alfresco', 'nuxeo']);
+  });
+
+  it('alwaysOffersAlfrescoAndNuxeoEvenWithNothingIndexed', async () => {
+    // A fresh stack has an empty index, and the two options are gated on login rather than on content.
+    const options = await optionsFor({ 'cmis:docmgr': 5 });
+
+    expect(options.map(o => o.key)).toEqual(['alfresco', 'nuxeo', 'cmis']);
+    expect(options.find(o => o.key === 'alfresco')?.count).toBe(0);
+  });
+
+  it('fallsBackToTheTwoKnownSourcesWhenStatusFails', async () => {
+    // sourceCounts is empty whenever hxpr is down, and the request can fail outright. Neither may empty
+    // the filter: the UI has to stay at least as usable as the two hardcoded options it replaced.
+    const pending = firstValueFrom(service.options());
+    httpMock.expectOne(STATUS_URL).error(new ProgressEvent('network error'));
+
+    expect((await pending).map(o => o.key)).toEqual(['alfresco', 'nuxeo']);
+  });
+
+  it('addsAnOptionPerSourceIdOnlyWhenATypeHasSeveral', async () => {
+    const options = await optionsFor({
+      'cmis:docmgr': 12,
+      'cmis:archive': 30,
+      'nuxeo:prod': 40
+    });
+
+    // Two CMIS repositories are both "CMIS", so the id is what distinguishes them. A type with one
+    // repository gains no extra option, because there would be nothing to distinguish.
+    expect(options.map(o => o.key))
+      .toEqual(['alfresco', 'nuxeo', 'cmis', 'cmis:archive', 'cmis:docmgr']);
+    expect(options.filter(o => o.level === 'id').map(o => o.label))
+      .toEqual(['CMIS (archive)', 'CMIS (docmgr)']);
+  });
+
+  it('scopesATypeOptionThroughSourceTypeAndAnIdOptionThroughTheFilter', async () => {
+    const options = await optionsFor({ 'cmis:docmgr': 1, 'cmis:archive': 1 });
+
+    const type = service.find(options, 'cmis')!;
+    expect(service.scope(type)).toEqual({ sourceType: 'cmis', filter: undefined });
+
+    // The request models carry no source id, so one repository can only be named in the filter.
+    const id = service.find(options, 'cmis:archive')!;
+    expect(service.scope(id)).toEqual({ filter: "cin_sourceId = 'cmis:archive'" });
+  });
+
+  it('andsTheSourceScopeWithAFilterTheCallerAlreadyHad', async () => {
+    const options = await optionsFor({ 'cmis:docmgr': 1, 'cmis:archive': 1 });
+    const id = service.find(options, 'cmis:docmgr')!;
+
+    expect(service.scope(id, "cin_ingestProperties.source_mimeType = 'application/pdf'").filter)
+      .toBe("(cin_ingestProperties.source_mimeType = 'application/pdf') AND (cin_sourceId = 'cmis:docmgr')");
+  });
+
+  it('treatsNoSelectionAsEverySourceAndKeepsTheCallersFilter', () => {
+    expect(service.scope(undefined)).toEqual({ filter: undefined });
+    expect(service.scope(undefined, "a = '1'")).toEqual({ filter: "a = '1'" });
+  });
+
+  it('readsStatusOnceForEveryScreenThatAsks', async () => {
+    const first = firstValueFrom(service.options());
+    httpMock.expectOne(STATUS_URL).flush(status({ 'nuxeo:prod': 1 }));
+    await first;
+
+    // The chat and search screens both ask; sourceCounts changes only when a new source is ingested.
+    await firstValueFrom(service.options());
+    httpMock.expectNone(STATUS_URL);
+
+    service.refresh();
+    const third = firstValueFrom(service.options());
+    httpMock.expectOne(STATUS_URL).flush(status({ 'nuxeo:prod': 2 }));
+    expect((await third).find(o => o.key === 'nuxeo')?.count).toBe(2);
+  });
+});

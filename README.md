@@ -26,12 +26,21 @@ Part of the **AI Ready Content Hub** ecosystem -- a PoC for ingesting Alfresco a
 
 ## Features
 - Alfresco and Nuxeo authentication inputs for demo use.
-- Mixed Alfresco and Nuxeo search results from the RAG service.
+- Search and chat results from every source the index holds, not only Alfresco and Nuxeo.
+- Source filter built from what the backend reports, so a CMIS repository, a filesystem tree or any
+  plugin connector is selectable without a change here. Two sources of the same type are offered
+  separately and labelled by source id.
 - Faceted search: narrow results by Source and File type with document counts (click to filter, friendly mime labels).
+- Table-aware results: a chunk extracted as a table is rendered as one rather than reflowed as prose.
+- Saved searches: scope a search to an hxpr named query, when the backend publishes any.
+- Document budget: ask for a number of distinct documents rather than a number of chunks, and see how
+  many documents answered.
 - Chat UI backed by the RAG streaming endpoint.
+- Conversation memory: the running summary the assistant carries between turns.
 - Answer options: composer toggles to auto-detect filters from the question and to request a structured answer (summary, key points, citations).
 - Citation faithfulness: grounded / unsupported badge and unsupported-claims list when backend verification is enabled.
-- Operational status view (`/status`): hxpr connectivity, per-source document counts, and embedding-model reachability from `/api/status`.
+- Operational status view (`/status`): hxpr connectivity, per-source document counts, embedding-model
+  reachability, and, when configured, the connectors an ingester has loaded and anything that failed to load.
 - Deep links that open documents in ACA or Nuxeo Web UI.
 - Docker image with runtime URL substitution for deployment environments.
 
@@ -66,16 +75,25 @@ The dev server uses `proxy.conf.json` and proxies `/api/rag`, `/alfresco`, and `
 
 ### Environment variables
 
-The Docker image substitutes three placeholders at container startup:
+The Docker image substitutes four placeholders at container startup, from the environment variable of
+the same name:
 
 | Placeholder | Purpose | Default (fallback) |
 |---|---|---|
 | `__ALFRESCO_URL__` | Alfresco Repository base URL | same-origin (`/alfresco`) |
 | `__NUXEO_URL__` | Nuxeo base URL | same-origin (`/nuxeo`) |
 | `__RAG_URL__` | RAG service base URL | same-origin (`/api/rag`) |
+| `__CONNECTORS_URL__` | Connector listing endpoint on an ingester | empty, and the panel is hidden |
 
 If a placeholder is unset or points at `localhost` while the browser is on a remote host, the app
 falls back to same-origin proxy paths automatically.
+
+`CONNECTORS_URL` has no same-origin default because `/api/connectors` is not a RAG service route and
+the deployment proxy does not forward it: it is published by each ingester, and
+`connector-batch-ingester` publishes a port of its own. Point it at an absolute URL to switch the
+status page's connector panel on, for example `http://localhost:9090/api/connectors` for the Alfresco
+batch ingester or `http://localhost:9096/api/connectors` for the connector ingester. Left unset, the
+panel does not render and no request is made.
 
 ## Build
 
@@ -83,7 +101,7 @@ falls back to same-origin proxy paths automatically.
 npm run build
 ```
 
-Production builds use `src/environments/environment.prod.ts`, and the container runtime replaces the `__ALFRESCO_URL__`, `__NUXEO_URL__`, and `__RAG_URL__` placeholders in the compiled bundle at startup. If those values are missing, or still point at `localhost` while the browser is on a remote host, the app falls back to same-origin proxy paths (`/alfresco`, `/nuxeo`, `/api/rag`).
+Production builds use `src/environments/environment.prod.ts`, and the container runtime replaces the `__ALFRESCO_URL__`, `__NUXEO_URL__`, `__RAG_URL__`, and `__CONNECTORS_URL__` placeholders in the compiled bundle at startup. If those values are missing, or still point at `localhost` while the browser is on a remote host, the app falls back to same-origin proxy paths (`/alfresco`, `/nuxeo`, `/api/rag`) and, for the connector listing, to no panel at all.
 
 ## Test
 
@@ -108,7 +126,6 @@ For local deployment via `content-lake-app-deployment`, this repo is expected at
 - `tsconfig.json` -- TypeScript config.
 - `tsconfig.spec.json` -- TypeScript config for unit tests.
 - `package.json` -- Dependencies.
-- `.npmrc` -- Satori package registry config.
 - `.github/workflows/` -- CI quality gates placeholder (pending Satori package access).
 
 ## Satori adoption

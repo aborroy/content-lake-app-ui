@@ -11,6 +11,17 @@ import {
   RagPromptResponse,
   RagService
 } from '../services/rag.service';
+import {
+  ContentSourceCatalogService,
+  ContentSourceOption
+} from '../services/content-source-catalog.service';
+import {
+  SourceModifier,
+  sourceClass,
+  sourceIcon,
+  sourceModifier,
+  sourceTypeLabel
+} from '../utils/source-presentation';
 
 let _nextId = 0;
 
@@ -101,24 +112,18 @@ export class DeleteSessionDialogComponent {}
                 Session-aware retrieval
               </span>
 
-              <mat-button-toggle-group [(ngModel)]="selectedSourceType"
+              <!-- Options come from /api/status, so any ingested source is selectable (#9). -->
+              <mat-button-toggle-group [(ngModel)]="sourceKey"
                                        [disabled]="thinking"
                                        class="source-toggle">
                 <mat-button-toggle value="">All</mat-button-toggle>
-                <mat-button-toggle value="alfresco"
-                                   [disabled]="!alfrescoLoggedIn"
-                                   [matTooltip]="alfrescoLoggedIn ? 'Alfresco only' : 'Log in to Alfresco first'">
-                  <span class="toggle-label toggle-label-alfresco">
-                    <mat-icon>storage</mat-icon>
-                    Alfresco
-                  </span>
-                </mat-button-toggle>
-                <mat-button-toggle value="nuxeo"
-                                   [disabled]="!nuxeoLoggedIn"
-                                   [matTooltip]="nuxeoLoggedIn ? 'Nuxeo only' : 'Log in to Nuxeo first'">
-                  <span class="toggle-label toggle-label-nuxeo">
-                    <mat-icon>folder_open</mat-icon>
-                    Nuxeo
+                <mat-button-toggle *ngFor="let option of sourceOptions"
+                                   [value]="option.key"
+                                   [disabled]="!isSelectable(option)"
+                                   [matTooltip]="sourceTooltip(option)">
+                  <span class="toggle-label" [ngClass]="'toggle-label-' + modifierFor(option.sourceType)">
+                    <mat-icon>{{ iconFor(option.sourceType) }}</mat-icon>
+                    {{ option.label }}
                   </span>
                 </mat-button-toggle>
               </mat-button-toggle-group>
@@ -142,6 +147,17 @@ export class DeleteSessionDialogComponent {}
                 Reset
               </button>
             </div>
+          </div>
+
+          <!-- Long-term memory (#10). Absent until rag-service has a summary for this session, which
+               takes more than one turn. -->
+          <div *ngIf="conversationSummary" class="summary-panel">
+            <button mat-button type="button" class="summary-toggle" (click)="toggleSummary()">
+              <mat-icon>{{ showSummary ? 'expand_less' : 'expand_more' }}</mat-icon>
+              <mat-icon class="summary-icon">psychology</mat-icon>
+              Conversation memory
+            </button>
+            <p *ngIf="showSummary" class="summary-text">{{ conversationSummary }}</p>
           </div>
 
           <div class="messages-area" #messagesContainer (scroll)="onScroll()">
@@ -265,12 +281,17 @@ export class DeleteSessionDialogComponent {}
                               class="source-badge"
                               [ngClass]="sourceBadgeClass(src.sourceType)">
                           <mat-icon>{{ sourceIcon(src.sourceType) }}</mat-icon>
-                          {{ src.sourceType | titlecase }}
+                          {{ sourceLabel(src.sourceType) }}
                         </span>
                       </div>
 
-                      <div *ngFor="let chunk of src.chunks" class="source-chunk">
-                        {{ chunk.text }}
+                      <!-- A TABLE chunk holds a markdown table; prose styling destroys its alignment (#118). -->
+                      <div *ngFor="let chunk of src.chunks"
+                           class="source-chunk"
+                           [class.source-chunk-table]="chunk.chunkType === 'TABLE'">
+                        <span *ngIf="chunk.chunkType === 'TABLE'" class="chunk-badge">Table</span>
+                        <pre *ngIf="chunk.chunkType === 'TABLE'" class="chunk-table">{{ chunk.text }}</pre>
+                        <ng-container *ngIf="chunk.chunkType !== 'TABLE'">{{ chunk.text }}</ng-container>
                       </div>
                     </div>
                   </div>
@@ -508,6 +529,33 @@ export class DeleteSessionDialogComponent {}
 
     .toggle-label-alfresco { color: var(--source-alfresco-strong); }
     .toggle-label-nuxeo    { color: var(--source-nuxeo-strong); }
+    /* Any other source type: readable, and not borrowing either repository's colour (#9). */
+    .toggle-label-generic  { color: var(--cl-text-muted); }
+
+    /* ---- Conversation memory (#10) ---- */
+
+    .summary-panel {
+      margin: 0 0 12px;
+      padding: 8px 12px;
+      border: 1px solid var(--cl-border);
+      border-radius: var(--radius-md);
+      background: var(--hy-gray-50);
+    }
+
+    .summary-toggle {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cl-text-muted);
+    }
+
+    .summary-icon { color: var(--hy-mark-purple); }
+
+    .summary-text {
+      margin: 6px 2px 2px;
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: var(--cl-text);
+    }
 
     /* ---- Messages area ---- */
 
@@ -859,6 +907,32 @@ export class DeleteSessionDialogComponent {}
     .source-item-alfresco .source-chunk { border-left-color: rgba(120, 190, 32, 0.5); }
     .source-item-nuxeo    .source-chunk { border-left-color: rgba(0, 163, 224, 0.45); }
 
+    /* ---- Table chunks (#118) ---- */
+
+    .source-chunk-table { white-space: normal; }
+
+    .chunk-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: var(--radius-xs);
+      background: var(--hy-gray-200);
+      color: var(--hy-gray-700);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .chunk-table {
+      margin: 6px 0 0;
+      overflow-x: auto;
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11.5px;
+      line-height: 1.6;
+      white-space: pre;
+    }
+
     /* ---- Input row ---- */
 
     .input-row {
@@ -916,11 +990,17 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   messages: ChatMessage[] = [];
   sessionSummaries: ChatSessionSummary[] = [];
   currentQuestion = '';
-  selectedSourceType: ContentSourceType | '' = '';
+  /** The selected source option's key: '' for every source (#9). */
+  sourceKey = '';
+  sourceOptions: ContentSourceOption[] = [];
   inferFilters = false;
   structuredMode = false;
   thinking = false;
   activeSessionId: string | null = null;
+
+  /** The running conversation summary for the open session, or null when there is not one yet (#10). */
+  conversationSummary: string | null = null;
+  showSummary = false;
 
   private shouldScroll = false;
   private autoScrollEnabled = true;
@@ -932,7 +1012,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     private auth: AuthService,
     private rag: RagService,
     private sessions: ChatSessionService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private sources: ContentSourceCatalogService
   ) {}
 
   ngOnInit(): void {
@@ -940,6 +1021,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.messages = this.sessions.getMessages(this.activeSessionId);
     this.healInterruptedMessages();
     this.refreshSummaries();
+    this.sources.options().subscribe((options) => { this.sourceOptions = options; });
+    this.loadConversationSummary();
     this.shouldScroll = true;
   }
 
@@ -997,10 +1080,15 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.lastTokenPersistMs = 0;
     this.persist();
 
+    // An id-level source option scopes through the filter rather than through sourceType, because the
+    // prompt request carries no source id (#9).
+    const scope = this.sources.scope(this.sources.find(this.sourceOptions, this.sourceKey));
+
     const opts: RagPromptOptions = {
       sessionId,
       resetSession: isFirstTurn,
-      ...(this.selectedSourceType ? { sourceType: this.selectedSourceType } : {}),
+      ...(scope.sourceType ? { sourceType: scope.sourceType } : {}),
+      ...(scope.filter ? { filter: scope.filter } : {}),
       ...(this.inferFilters ? { inferFilters: true } : {}),
       ...(this.structuredMode ? { responseFormat: 'STRUCTURED' as const } : {})
     };
@@ -1046,6 +1134,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.currentQuestion = '';
     this.autoScrollEnabled = true;
     this.refreshSummaries();
+    this.loadConversationSummary();
     this.shouldScroll = true;
   }
 
@@ -1057,6 +1146,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     this.healInterruptedMessages();
     this.autoScrollEnabled = true;
     this.refreshSummaries();
+    this.loadConversationSummary();
     this.shouldScroll = true;
   }
 
@@ -1072,6 +1162,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
           const next = this.sessions.ensureActiveSession();
           this.activeSessionId = next;
           this.messages = this.sessions.getMessages(next);
+          this.loadConversationSummary();
           this.shouldScroll = true;
         }
         this.refreshSummaries();
@@ -1089,22 +1180,52 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
   trackSession(_i: number, s: ChatSessionSummary): string { return s.sessionId; }
 
-  sourceIcon(source: ContentSourceType | undefined): string {
-    if (source === 'alfresco') return 'storage';
-    if (source === 'nuxeo') return 'folder_open';
-    return 'description';
+  /** Alfresco and Nuxeo need a session in that repository; any other source is offered outright. */
+  isSelectable(option: ContentSourceOption): boolean {
+    if (!option.loginGated) return true;
+    return option.sourceType === 'alfresco' ? this.alfrescoLoggedIn : this.nuxeoLoggedIn;
   }
 
+  sourceTooltip(option: ContentSourceOption): string {
+    if (!this.isSelectable(option)) return `Log in to ${option.label} first`;
+    const docs = `${option.count} document${option.count !== 1 ? 's' : ''} indexed`;
+    return `${option.label} only (${docs})`;
+  }
+
+  iconFor(sourceType?: string): string { return sourceIcon(sourceType); }
+
+  modifierFor(sourceType?: string): SourceModifier { return sourceModifier(sourceType); }
+
+  toggleSummary(): void { this.showSummary = !this.showSummary; }
+
+  /**
+   * Reads the running summary for the open session (#10).
+   *
+   * Skipped while the session id is still the client-side `ui-` one, because the server has never seen
+   * that session and would answer 404. A 404 for a real session means the conversation is too short to
+   * have a summary yet, which is not an error: the panel is simply absent.
+   */
+  private loadConversationSummary(): void {
+    this.conversationSummary = null;
+    const sessionId = this.activeSessionId;
+    if (!sessionId || sessionId.startsWith('ui-')) return;
+
+    this.rag.getSessionSummary(sessionId).subscribe({
+      next: (resp) => { this.conversationSummary = resp?.summary?.trim() || null; },
+      error: () => { this.conversationSummary = null; }
+    });
+  }
+
+  sourceIcon(source: ContentSourceType | undefined): string { return sourceIcon(source); }
+
+  sourceLabel(source: ContentSourceType | undefined): string { return sourceTypeLabel(source); }
+
   sourceBadgeClass(source: ContentSourceType | undefined): string {
-    if (source === 'alfresco') return 'source-badge-alfresco';
-    if (source === 'nuxeo') return 'source-badge-nuxeo';
-    return '';
+    return sourceClass('source-badge', source);
   }
 
   sourceCardClass(source: ContentSourceType | undefined): string {
-    if (source === 'alfresco') return 'source-item-alfresco';
-    if (source === 'nuxeo') return 'source-item-nuxeo';
-    return '';
+    return sourceClass('source-item', source);
   }
 
   private fallbackToPrompt(
@@ -1150,7 +1271,13 @@ export class ChatComponent implements OnInit, AfterViewChecked {
     msg.verified = response.verified;
     msg.unsupportedClaims = response.unsupportedClaims;
     msg.structured = response.structured;
+    msg.requestId = response.requestId;
     msg.error = undefined;
+    // The summary that informed this answer, not one that includes it: rag-service refreshes it on its
+    // own executor after the response is sent, so the next turn is what reflects this one.
+    if (response.currentSummary?.trim()) {
+      this.conversationSummary = response.currentSummary.trim();
+    }
   }
 
   private finishMessage(msg: ChatMessage): void {
@@ -1166,7 +1293,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
       const key = `${s.sourceId ?? ''}::${s.nodeId}`;
       const existing = map.get(key);
       if (existing) {
-        existing.chunks.push({ text: s.chunkText, score: s.score });
+        existing.chunks.push({ text: s.chunkText, score: s.score, chunkType: s.chunkType });
       } else {
         map.set(key, {
           nodeId: s.nodeId,
@@ -1175,7 +1302,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
           name: s.name,
           path: s.path,
           score: s.score,
-          chunks: [{ text: s.chunkText, score: s.score }],
+          chunks: [{ text: s.chunkText, score: s.score, chunkType: s.chunkType }],
           openInSourceUrl: s.openInSourceUrl
         });
       }

@@ -1,10 +1,21 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.service';
 import { CompareResult } from '../permission-compare/permission-compare.component';
 import { ContentSourceType, FacetBucket, FacetsResponse, RagResult, RagService } from '../services/rag.service';
+import {
+  ContentSourceCatalogService,
+  ContentSourceOption
+} from '../services/content-source-catalog.service';
+import {
+  SourceModifier,
+  sourceIcon,
+  sourceKeyLabel,
+  sourceModifier
+} from '../utils/source-presentation';
+import { combineFilters, escapeHxqlLiteral } from '../utils/hxql';
 
 interface FacetGroup {
   property: string;
@@ -12,12 +23,20 @@ interface FacetGroup {
   buckets: FacetBucket[];
 }
 
+/** What the last search asked for, so the context bar and the comparison panel agree with it. */
 interface SearchContext {
   query: string;
-  sourceFilter: ContentSourceType | '';
+  /** The `sourceType` field sent, if any. Absent for an id-level or unscoped search. */
+  sourceType?: ContentSourceType;
+  /** The HXQL filter sent, facets and any source-id clause combined. */
+  filter?: string;
+  namedQuery?: string;
+  sourceLabel: string;
+  sourceModifier: SourceModifier;
   alfrescoUser: string | null;
   nuxeoUser: string | null;
   resultCount: number;
+  documentCount?: number;
   searchTimeMs: number;
 }
 
@@ -118,22 +137,17 @@ interface SearchContext {
             <mat-icon matPrefix>search</mat-icon>
           </mat-form-field>
 
-          <mat-button-toggle-group [(ngModel)]="sourceFilter" class="source-toggle">
+          <!-- Source filter: options come from /api/status, so a source type this build has never
+               heard of is selectable without a change here (#9). -->
+          <mat-button-toggle-group [(ngModel)]="sourceKey" class="source-toggle">
             <mat-button-toggle value="">All sources</mat-button-toggle>
-            <mat-button-toggle value="alfresco"
-                               [disabled]="!alfrescoLoggedIn"
-                               [matTooltip]="alfrescoLoggedIn ? 'Alfresco only' : 'Log in to Alfresco first'">
-              <span class="toggle-label toggle-label-alfresco">
-                <mat-icon>storage</mat-icon>
-                Alfresco
-              </span>
-            </mat-button-toggle>
-            <mat-button-toggle value="nuxeo"
-                               [disabled]="!nuxeoLoggedIn"
-                               [matTooltip]="nuxeoLoggedIn ? 'Nuxeo only' : 'Log in to Nuxeo first'">
-              <span class="toggle-label toggle-label-nuxeo">
-                <mat-icon>folder_open</mat-icon>
-                Nuxeo
+            <mat-button-toggle *ngFor="let option of sourceOptions"
+                               [value]="option.key"
+                               [disabled]="!isSelectable(option)"
+                               [matTooltip]="sourceTooltip(option)">
+              <span class="toggle-label" [ngClass]="'toggle-label-' + modifierFor(option.sourceType)">
+                <mat-icon>{{ iconFor(option.sourceType) }}</mat-icon>
+                {{ option.label }}
               </span>
             </mat-button-toggle>
           </mat-button-toggle-group>
@@ -146,6 +160,33 @@ interface SearchContext {
             <span>{{ loading ? 'Searching…' : 'Run search' }}</span>
             <mat-icon *ngIf="!loading">arrow_forward</mat-icon>
           </button>
+        </div>
+
+        <div class="search-advanced">
+          <!-- Saved searches (#10). Absent when hxpr has no named queries. -->
+          <mat-form-field *ngIf="namedQueries.length > 0" appearance="outline" class="advanced-field">
+            <mat-label>Saved query</mat-label>
+            <select matNativeControl [(ngModel)]="selectedNamedQuery" [disabled]="loading">
+              <option value="">None</option>
+              <option *ngFor="let nq of namedQueries" [value]="nq">{{ nq }}</option>
+            </select>
+          </mat-form-field>
+
+          <!-- The #135 document budget. Both empty sends neither field, which is what this UI used to
+               send, so results are unchanged until one is set. -->
+          <mat-form-field appearance="outline" class="advanced-field advanced-field-number">
+            <mat-label>Documents</mat-label>
+            <input matInput type="number" min="1" max="50" [(ngModel)]="topDocuments"
+                   [disabled]="loading"
+                   matTooltip="Return chunks from at most this many distinct documents. Empty budgets chunks instead." />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="advanced-field advanced-field-number">
+            <mat-label>Chunks per document</mat-label>
+            <input matInput type="number" min="1" max="10" [(ngModel)]="chunksPerDocument"
+                   [disabled]="loading"
+                   matTooltip="Most chunks to take from any one document. Empty uses the server's cap." />
+          </mat-form-field>
         </div>
       </section>
 
@@ -164,19 +205,28 @@ interface SearchContext {
         </div>
 
         <div class="context-stats">
+          <!-- A result is a chunk, so the document count is the number that says how much of the corpus
+               answered (#11). It comes from the response rather than being derived from the hit list. -->
           <span class="metric-chip">
             <mat-icon>filter_list</mat-icon>
-            {{ ctx.resultCount }} result{{ ctx.resultCount !== 1 ? 's' : '' }}
+            {{ ctx.resultCount }} chunk{{ ctx.resultCount !== 1 ? 's' : '' }}
+            <ng-container *ngIf="ctx.documentCount !== undefined">
+              from {{ ctx.documentCount }} document{{ ctx.documentCount !== 1 ? 's' : '' }}
+            </ng-container>
           </span>
           <span class="metric-chip">
             <mat-icon>schedule</mat-icon>
             {{ ctx.searchTimeMs }}ms
           </span>
-          <span *ngIf="ctx.sourceFilter"
+          <span *ngIf="ctx.sourceLabel"
                 class="source-badge"
-                [ngClass]="ctx.sourceFilter === 'alfresco' ? 'source-badge-alfresco' : 'source-badge-nuxeo'">
-            <mat-icon>{{ ctx.sourceFilter === 'alfresco' ? 'storage' : 'folder_open' }}</mat-icon>
-            {{ ctx.sourceFilter | titlecase }} only
+                [ngClass]="'source-badge-' + ctx.sourceModifier">
+            <mat-icon>{{ iconFor(ctx.sourceType) }}</mat-icon>
+            {{ ctx.sourceLabel }} only
+          </span>
+          <span *ngIf="ctx.namedQuery" class="metric-chip">
+            <mat-icon>bookmark</mat-icon>
+            {{ ctx.namedQuery }}
           </span>
         </div>
       </div>
@@ -242,12 +292,15 @@ interface SearchContext {
       </div>
 
       <div *ngIf="searched && !loading" class="compare-section">
+        <!-- The comparison has to run the same scope as the main search, or it diffs two queries (#12). -->
         <app-permission-compare
           [query]="ctx?.query || ''"
-          [sourceFilter]="ctx?.sourceFilter || ''"
+          [sourceFilter]="ctx?.sourceType || ''"
+          [searchFilter]="ctx?.filter || ''"
+          [namedQuery]="ctx?.namedQuery || ''"
           [mainResults]="results"
           [mainUsername]="ctx?.alfrescoUser || ctx?.nuxeoUser || ''"
-          [mainSource]="ctx?.sourceFilter || ''"
+          [mainSource]="ctx?.sourceType || ''"
           (compareComplete)="onCompareComplete($event)">
         </app-permission-compare>
       </div>
@@ -554,6 +607,18 @@ interface SearchContext {
 
     .toggle-label-alfresco { color: var(--source-alfresco-strong); }
     .toggle-label-nuxeo    { color: var(--source-nuxeo-strong); }
+    /* Any other source type: readable, and not borrowing either repository's colour (#9). */
+    .toggle-label-generic  { color: var(--cl-text-muted); }
+
+    .search-advanced {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .advanced-field { min-width: 190px; }
+    .advanced-field-number { max-width: 190px; }
 
     .search-action {
       min-height: 48px;
@@ -796,14 +861,24 @@ interface SearchContext {
     }
   `]
 })
-export class SearchComponent {
+export class SearchComponent implements OnInit {
   query = '';
-  sourceFilter: ContentSourceType | '' = '';
+  /** The selected source option's key: '' for every source (#9). */
+  sourceKey = '';
+  sourceOptions: ContentSourceOption[] = [];
   results: RagResult[] = [];
   loading = false;
   searched = false;
   ctx: SearchContext | null = null;
   lastCompareResult: CompareResult | null = null;
+
+  // #10 saved searches
+  namedQueries: string[] = [];
+  selectedNamedQuery = '';
+
+  // #11 document budget, both unset so the request is what it always was
+  topDocuments?: number;
+  chunksPerDocument?: number;
 
   // #2 faceted search
   facetGroups: FacetGroup[] = [];
@@ -812,8 +887,30 @@ export class SearchComponent {
   constructor(
     private rag: RagService,
     private snackBar: MatSnackBar,
-    private auth: AuthService
+    private auth: AuthService,
+    private sources: ContentSourceCatalogService
   ) {}
+
+  ngOnInit(): void {
+    this.sources.options().subscribe((options) => { this.sourceOptions = options; });
+    this.rag.getNamedQueries().subscribe((names) => { this.namedQueries = names; });
+  }
+
+  /** Alfresco and Nuxeo need a session in that repository; any other source is offered outright. */
+  isSelectable(option: ContentSourceOption): boolean {
+    if (!option.loginGated) return true;
+    return option.sourceType === 'alfresco' ? this.alfrescoLoggedIn : this.nuxeoLoggedIn;
+  }
+
+  sourceTooltip(option: ContentSourceOption): string {
+    if (!this.isSelectable(option)) return `Log in to ${option.label} first`;
+    const docs = `${option.count} document${option.count !== 1 ? 's' : ''} indexed`;
+    return `${option.label} only (${docs})`;
+  }
+
+  iconFor(sourceType?: string): string { return sourceIcon(sourceType); }
+
+  modifierFor(sourceType?: string): SourceModifier { return sourceModifier(sourceType); }
 
   get anyLoggedIn(): boolean     { return this.auth.isAnyLoggedIn(); }
   get alfrescoLoggedIn(): boolean { return this.auth.isAlfrescoLoggedIn(); }
@@ -840,23 +937,37 @@ export class SearchComponent {
     this.lastCompareResult = null;
 
     const t0 = Date.now();
-    const sourceType = this.sourceFilter || undefined;
-    const filter = this.buildFacetFilter();
+    const selected = this.sources.find(this.sourceOptions, this.sourceKey);
+    // The source scope and the facet filter share one `filter` field, so they are combined here rather
+    // than each being sent on its own.
+    const scope = this.sources.scope(selected, this.buildFacetFilter());
+    const namedQuery = this.selectedNamedQuery || undefined;
 
     const alfSession: AlfrescoSession | null = this.auth.getAlfrescoSession();
     const nuxSession: NuxeoSession | null = this.auth.getNuxeoSession();
 
-    this.rag.search(this.query, sourceType, filter).subscribe({
-      next: results => {
+    this.rag.search(this.query, {
+      sourceType: scope.sourceType,
+      filter: scope.filter,
+      namedQuery,
+      topDocuments: this.topDocuments,
+      chunksPerDocument: this.chunksPerDocument
+    }).subscribe({
+      next: outcome => {
         const elapsed = Date.now() - t0;
-        this.results = results;
-        this.loadFacets(filter);
+        this.results = outcome.results;
+        this.loadFacets(scope.filter, scope.sourceType);
         this.ctx = {
           query: this.query,
-          sourceFilter: this.sourceFilter,
+          sourceType: scope.sourceType,
+          filter: scope.filter,
+          namedQuery,
+          sourceLabel: selected?.label ?? '',
+          sourceModifier: sourceModifier(selected?.sourceType),
           alfrescoUser: alfSession?.username ?? null,
           nuxeoUser: nuxSession?.username ?? null,
-          resultCount: results.length,
+          resultCount: outcome.results.length,
+          documentCount: outcome.documentCount,
           searchTimeMs: elapsed
         };
         this.searched = true;
@@ -916,10 +1027,14 @@ export class SearchComponent {
     return spaced.charAt(0).toUpperCase() + spaced.slice(1);
   }
 
-  /** Human-friendly display for a bucket value (mime types get readable names). */
+  /** Human-friendly display for a bucket value (mime types and source ids get readable names). */
   facetValueLabel(property: string, value: string): string {
     if (property.toLowerCase().endsWith('mimetype')) {
       return SearchComponent.MIME_LABELS[value] ?? value;
+    }
+    // cin_sourceId buckets are `<sourceType>:<sourceId>`, which is not a label.
+    if (property === 'cin_sourceId') {
+      return sourceKeyLabel(value);
     }
     return value;
   }
@@ -941,13 +1056,12 @@ export class SearchComponent {
     'text/xml': 'XML'
   };
 
-  private loadFacets(filter?: string): void {
+  private loadFacets(filter?: string, sourceType?: string): void {
     const properties = this.rag.facetProperties;
     if (!properties.length) {
       this.facetGroups = [];
       return;
     }
-    const sourceType = this.sourceFilter || undefined;
 
     forkJoin(
       properties.map((property) =>
@@ -970,18 +1084,14 @@ export class SearchComponent {
     const byProperty = new Map<string, string[]>();
     for (const facet of this.activeFacets) {
       const clauses = byProperty.get(facet.property) ?? [];
-      clauses.push(`${facet.property} = '${this.escapeHxql(facet.value)}'`);
+      clauses.push(`${facet.property} = '${escapeHxqlLiteral(facet.value)}'`);
       byProperty.set(facet.property, clauses);
     }
-    const combined: string[] = [];
+    let combined: string | undefined;
     for (const clauses of byProperty.values()) {
-      combined.push(clauses.length > 1 ? `(${clauses.join(' OR ')})` : clauses[0]);
+      combined = combineFilters(combined, clauses.length > 1 ? clauses.join(' OR ') : clauses[0]);
     }
-    return combined.join(' AND ');
-  }
-
-  private escapeHxql(value: string): string {
-    return value.replace(/'/g, "''");
+    return combined;
   }
 
   onCompareComplete(result: CompareResult): void {

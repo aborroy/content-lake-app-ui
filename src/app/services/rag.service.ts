@@ -1,13 +1,24 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { resolveStatusUrl } from '../utils/api-paths';
 import { AuthService } from './auth.service';
 
 // ---- API response types (match backend SemanticSearchResponse) ----
 
-export type ContentSourceType = 'alfresco' | 'nuxeo';
+/**
+ * A source type as reported by rag-service.
+ *
+ * Deliberately open (#9): the index holds whatever has been ingested into it, which today can be a
+ * filesystem tree, a CMIS repository or any plugin connector, and a UI that closes this union cannot
+ * even name such a source. `ALFRESCO` and `NUXEO` are the two that have dedicated styling and a login
+ * of their own; nothing else about them is special.
+ */
+export type ContentSourceType = string;
+
+export const ALFRESCO: ContentSourceType = 'alfresco';
+export const NUXEO: ContentSourceType = 'nuxeo';
 
 interface SemanticSearchRequest {
   query: string;
@@ -15,6 +26,32 @@ interface SemanticSearchRequest {
   minScore?: number;
   sourceType?: ContentSourceType;
   filter?: string;
+  /** hxpr named query whose matching documents scope the search (#10). */
+  namedQuery?: string;
+  /** Distinct documents to return chunks from; owns the budget and ignores topK when set (#11). */
+  topDocuments?: number;
+  /** Most chunks to take from any one document (#11). */
+  chunksPerDocument?: number;
+}
+
+/** Options for a search request. Anything omitted is left off the body entirely. */
+export interface SearchOptions {
+  sourceType?: ContentSourceType;
+  filter?: string;
+  namedQuery?: string;
+  topDocuments?: number;
+  chunksPerDocument?: number;
+}
+
+/** A search response, with the counters the caller needs to describe the result set (#11). */
+export interface SearchOutcome {
+  results: RagResult[];
+  /** Distinct documents the results came from. Populated by rag-service on every response. */
+  documentCount?: number;
+  appliedTopDocuments?: number;
+  appliedChunksPerDocument?: number;
+  /** Server-measured search time, as distinct from the round trip the caller sees. */
+  searchTimeMs: number;
 }
 
 // ---- Faceted search (#2) ----
@@ -42,11 +79,24 @@ interface SearchResultSourceDocument {
   openInSourceUrl?: string;
 }
 
+/** Whether a chunk kept its markdown structure. A TABLE chunk holds a markdown table (#118). */
+export type ChunkType = 'PROSE' | 'TABLE';
+
+interface SearchResultChunkMetadata {
+  embeddingId?: string;
+  embeddingType?: string;
+  page?: number;
+  paragraph?: number;
+  chunkLength?: number;
+  chunkType?: ChunkType;
+}
+
 interface SearchResultItem {
   rank: number;
   score: number;
   chunkText: string;
   sourceDocument: SearchResultSourceDocument;
+  chunkMetadata?: SearchResultChunkMetadata;
 }
 
 interface SemanticSearchResponse {
@@ -55,6 +105,10 @@ interface SemanticSearchResponse {
   vectorDimension: number;
   resultCount: number;
   totalCount: number;
+  /** Distinct documents behind `results` (#135). */
+  documentCount?: number;
+  appliedTopDocuments?: number;
+  appliedChunksPerDocument?: number;
   searchTimeMs: number;
   results: SearchResultItem[];
 }
@@ -101,6 +155,7 @@ export interface PromptSource {
   chunkText: string;
   score: number;
   openInSourceUrl?: string;
+  chunkType?: ChunkType;
 }
 
 export interface Citation { sourceName: string; quote: string; }
@@ -115,6 +170,16 @@ export interface RagPromptResponse {
   answer: string;
   question: string;
   sessionId?: string;
+  /**
+   * Correlation key for this answer. Typed so it survives the stream normaliser; it is what
+   * `POST /api/rag/feedback` needs to attach a rating to a specific answer.
+   */
+  requestId?: string;
+  /**
+   * The running conversation summary (#10). It is the summary that *informed* this answer rather than
+   * one that includes it: rag-service refreshes it on its own executor after the response is sent.
+   */
+  currentSummary?: string;
   retrievalQuery?: string;
   historyTurnsUsed?: number;
   model: string;
@@ -136,7 +201,7 @@ export type RagPromptStreamEvent =
 
 // ---- Chat UI view models ----
 
-export interface ChunkSnippet { text: string; score: number; }
+export interface ChunkSnippet { text: string; score: number; chunkType?: ChunkType; }
 
 export interface MergedDocument {
   nodeId: string;
@@ -167,6 +232,7 @@ export interface ChatMessage {
   verified?: boolean;
   unsupportedClaims?: string[];
   structured?: StructuredAnswer;
+  requestId?: string;
 }
 
 // ---- Operational status (#6) ----
@@ -178,6 +244,31 @@ export interface StatusResponse {
   totalDocuments: number;
   sourceCounts: Record<string, number>;
   embeddingModel: ModelRunnerStatus;
+}
+
+// ---- Conversation summary (#10) ----
+
+export interface SessionSummaryResponse { sessionId: string; summary: string; }
+
+// ---- Loaded connectors (#9) ----
+
+/**
+ * One connector an ingester has loaded.
+ *
+ * `origin` is `in-tree` for a connector compiled into the build, or the jar it was loaded from.
+ */
+export interface ConnectorInfo {
+  sourceType: string;
+  displayName: string;
+  origin: string;
+  implementation: string;
+  settings: number;
+}
+
+/** `problems` is empty when every jar in the plugin directory loaded. */
+export interface ConnectorListing {
+  connectors: ConnectorInfo[];
+  problems: string[];
 }
 
 // ---- Health ----
@@ -210,6 +301,8 @@ export interface RagResult {
   openInSourceUrl?: string;
   /** Kept for ResultsComponent backward compat */
   url?: string;
+  /** TABLE means the snippet is a markdown table and must not be reflowed as prose (#118). */
+  chunkType?: ChunkType;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -220,14 +313,10 @@ export class RagService {
 
   constructor(private http: HttpClient, private auth: AuthService) {}
 
-  search(query: string, sourceType?: ContentSourceType, filter?: string): Observable<RagResult[]> {
-    const body: SemanticSearchRequest = { query, topK: 10 };
-    if (sourceType) body.sourceType = sourceType;
-    if (filter) body.filter = filter;
-
+  search(query: string, options: SearchOptions = {}): Observable<SearchOutcome> {
     return this.http
-      .post<SemanticSearchResponse>(`${environment.ragUrl}/search/semantic`, body)
-      .pipe(map(resp => this.mapResults(resp)));
+      .post<SemanticSearchResponse>(`${environment.ragUrl}/search/semantic`, this.searchBody(query, options))
+      .pipe(map(resp => this.mapOutcome(resp)));
   }
 
   /** Faceted search (#2): top property values with document counts. */
@@ -241,21 +330,63 @@ export class RagService {
   }
 
   /**
+   * hxpr named queries usable as saved searches (#10). An empty list, or a failure, means the feature
+   * is simply not offered: it must never stop a search from running.
+   */
+  getNamedQueries(): Observable<string[]> {
+    return this.http.get<string[]>(`${environment.ragUrl}/named-queries`).pipe(
+      map(names => Array.isArray(names) ? names : []),
+      catchError(() => of<string[]>([]))
+    );
+  }
+
+  /** The running conversation summary for a session (#10). 404 means there is not one yet. */
+  getSessionSummary(sessionId: string): Observable<SessionSummaryResponse> {
+    return this.http.get<SessionSummaryResponse>(
+      `${environment.ragUrl}/sessions/${encodeURIComponent(sessionId)}/summary`);
+  }
+
+  /**
+   * Connectors an ingester has loaded (#9), or null when no connectors URL is configured.
+   *
+   * This is not a rag-service route: `RagServiceApplication` leaves `ConnectorSchemaController` out of
+   * its component scan, and the deployment proxy does not forward `/api/connectors`. It lives on each
+   * ingester, and `connector-batch-ingester` publishes its own port, so the URL is configured rather
+   * than derived from `ragUrl`.
+   */
+  getConnectors(): Observable<ConnectorListing> | null {
+    const url = (environment.connectorsUrl ?? '').trim();
+    if (!url) return null;
+    return this.http.get<ConnectorListing>(url);
+  }
+
+  /**
    * Runs a search with explicit auth headers, bypassing the stored session interceptor.
    * Used by the permission comparison panel to search as a different user without
    * touching the active session.
+   *
+   * It must send the same scope the main search did (#12), or the comparison diffs two different
+   * queries and reports filtered-out documents as ones the other user cannot see.
    */
   searchWithHeaders(
     query: string,
     authHeaders: HttpHeaders,
-    sourceType?: ContentSourceType
+    options: SearchOptions = {}
   ): Observable<RagResult[]> {
-    const body: SemanticSearchRequest = { query, topK: 10 };
-    if (sourceType) body.sourceType = sourceType;
-
     return this.http
-      .post<SemanticSearchResponse>(`${environment.ragUrl}/search/semantic`, body, { headers: authHeaders })
-      .pipe(map(resp => this.mapResults(resp)));
+      .post<SemanticSearchResponse>(`${environment.ragUrl}/search/semantic`,
+        this.searchBody(query, options), { headers: authHeaders })
+      .pipe(map(resp => this.mapOutcome(resp).results));
+  }
+
+  private searchBody(query: string, options: SearchOptions): SemanticSearchRequest {
+    const body: SemanticSearchRequest = { query, topK: 10 };
+    if (options.sourceType) body.sourceType = options.sourceType;
+    if (options.filter) body.filter = options.filter;
+    if (options.namedQuery) body.namedQuery = options.namedQuery;
+    if (options.topDocuments) body.topDocuments = options.topDocuments;
+    if (options.chunksPerDocument) body.chunksPerDocument = options.chunksPerDocument;
+    return body;
   }
 
   prompt(question: string, options: RagPromptOptions = {}): Observable<RagPromptResponse> {
@@ -420,6 +551,8 @@ export class RagService {
       answer: typeof c.answer === 'string' ? c.answer : (fallback || ''),
       question: typeof c.question === 'string' ? c.question : '',
       sessionId: typeof c.sessionId === 'string' ? c.sessionId : undefined,
+      requestId: typeof c.requestId === 'string' ? c.requestId : undefined,
+      currentSummary: typeof c.currentSummary === 'string' ? c.currentSummary : undefined,
       retrievalQuery: typeof c.retrievalQuery === 'string' ? c.retrievalQuery : undefined,
       historyTurnsUsed: typeof c.historyTurnsUsed === 'number' ? c.historyTurnsUsed : undefined,
       model: typeof c.model === 'string' ? c.model : 'unknown',
@@ -441,18 +574,25 @@ export class RagService {
     return err instanceof TypeError;
   }
 
-  private mapResults(resp: SemanticSearchResponse): RagResult[] {
-    return (resp?.results ?? []).map(item => ({
-      rank: item.rank,
-      score: item.score,
-      title: item.sourceDocument?.name ?? '(untitled)',
-      snippet: item.chunkText ?? '',
-      source: item.sourceDocument?.sourceType,
-      sourceId: item.sourceDocument?.sourceId,
-      path: item.sourceDocument?.path,
-      openInSourceUrl: item.sourceDocument?.openInSourceUrl,
-      url: item.sourceDocument?.openInSourceUrl,
-    }));
+  private mapOutcome(resp: SemanticSearchResponse): SearchOutcome {
+    return {
+      results: (resp?.results ?? []).map(item => ({
+        rank: item.rank,
+        score: item.score,
+        title: item.sourceDocument?.name ?? '(untitled)',
+        snippet: item.chunkText ?? '',
+        source: item.sourceDocument?.sourceType,
+        sourceId: item.sourceDocument?.sourceId,
+        path: item.sourceDocument?.path,
+        openInSourceUrl: item.sourceDocument?.openInSourceUrl,
+        url: item.sourceDocument?.openInSourceUrl,
+        chunkType: item.chunkMetadata?.chunkType,
+      })),
+      documentCount: resp?.documentCount,
+      appliedTopDocuments: resp?.appliedTopDocuments,
+      appliedChunksPerDocument: resp?.appliedChunksPerDocument,
+      searchTimeMs: resp?.searchTimeMs ?? 0,
+    };
   }
 }
 

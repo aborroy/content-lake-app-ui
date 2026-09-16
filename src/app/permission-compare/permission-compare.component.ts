@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core
 import { Observable } from 'rxjs';
 import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.service';
 import { ContentSourceType, RagResult, RagService } from '../services/rag.service';
+import { sourceClass } from '../utils/source-presentation';
 
 export interface CompareResult {
   username: string;
@@ -79,7 +80,7 @@ export interface CompareResult {
             <div class="score-card score-card-main" [ngClass]="scoreClass(mainSource)">
               <span class="score-label">Current view</span>
               <strong class="score-count">{{ mainCount }}</strong>
-              <span class="user-tag" [ngClass]="mainSource === 'alfresco' ? 'user-tag-alfresco' : mainSource === 'nuxeo' ? 'user-tag-nuxeo' : ''">
+              <span class="user-tag" [ngClass]="userTagClass(mainSource)">
                 {{ mainUsername || 'Current session' }}
               </span>
             </div>
@@ -87,7 +88,7 @@ export interface CompareResult {
             <div class="score-card score-card-compare" [ngClass]="scoreClass(compareResult.source)">
               <span class="score-label">Comparison view</span>
               <strong class="score-count">{{ compareResult.count }}</strong>
-              <span class="user-tag" [ngClass]="compareResult.source === 'alfresco' ? 'user-tag-alfresco' : 'user-tag-nuxeo'">
+              <span class="user-tag" [ngClass]="userTagClass(compareResult.source)">
                 {{ compareResult.username }}
               </span>
             </div>
@@ -339,6 +340,14 @@ export interface CompareResult {
 export class PermissionCompareComponent implements OnChanges {
   @Input() query = '';
   @Input() sourceFilter: ContentSourceType | '' = '';
+  /**
+   * The HXQL filter the main search sent: active facets, and any source-id clause (#12).
+   *
+   * Without it the comparison runs unfiltered against a filtered main search, and documents excluded by
+   * a facet are reported as documents the other identity cannot see.
+   */
+  @Input() searchFilter = '';
+  @Input() namedQuery = '';
   @Input() mainResults: RagResult[] = [];
   @Input() mainUsername = '';
   @Input() mainSource: ContentSourceType | '' = '';
@@ -396,9 +405,12 @@ export class PermissionCompareComponent implements OnChanges {
     authObs.subscribe({
       next: session => {
         const headers = this.buildHeaders(session);
-        const sourceType = this.sourceFilter || undefined;
 
-        this.rag.searchWithHeaders(this.query, headers, sourceType).subscribe({
+        this.rag.searchWithHeaders(this.query, headers, {
+          sourceType: this.sourceFilter || undefined,
+          filter: this.searchFilter || undefined,
+          namedQuery: this.namedQuery || undefined
+        }).subscribe({
           next: results => {
             this.compareResult = {
               username: session.username,
@@ -432,9 +444,11 @@ export class PermissionCompareComponent implements OnChanges {
   }
 
   scoreClass(source: ContentSourceType | '' | undefined): string {
-    if (source === 'alfresco') return 'score-card-alfresco';
-    if (source === 'nuxeo') return 'score-card-nuxeo';
-    return '';
+    return sourceClass('score-card', source || undefined);
+  }
+
+  userTagClass(source: ContentSourceType | '' | undefined): string {
+    return sourceClass('user-tag', source || undefined);
   }
 
   private buildHeaders(session: { username: string; ticket?: string; credentials?: string }): HttpHeaders {

@@ -307,6 +307,14 @@ a:focus-visible,
   border: 1px solid rgba(0, 130, 179, 0.2);
 }
 
+// Every other source type: a neutral tag, so a CMIS or connector-sourced document is not drawn as if it
+// came from Alfresco or Nuxeo.
+.source-badge-generic {
+  background: var(--hy-gray-100);
+  color: var(--hy-gray-700);
+  border: 1px solid var(--cl-border-strong);
+}
+
 // -- Metric chips -----------------------------------------------------------
 
 .metric-chip {

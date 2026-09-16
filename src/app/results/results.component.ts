@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { RagResult } from '../services/rag.service';
+import { sourceClass, sourceIcon, sourceTypeLabel } from '../utils/source-presentation';
 
 @Component({
   selector: 'app-results',
@@ -16,13 +17,9 @@ import { RagResult } from '../services/rag.service';
 
           <div class="result-copy">
             <div class="result-topline">
-              <span class="source-badge"
-                    [ngClass]="r.source === 'alfresco'
-                      ? 'source-badge-alfresco'
-                      : r.source === 'nuxeo'
-                        ? 'source-badge-nuxeo' : ''">
+              <span class="source-badge" [ngClass]="badgeClass(r.source)">
                 <mat-icon>{{ sourceIcon(r.source) }}</mat-icon>
-                {{ r.source ? (r.source | titlecase) : 'Unknown' }}
+                {{ sourceLabel(r.source) }}
                 <span *ngIf="r.sourceId" class="source-id">· {{ r.sourceId }}</span>
               </span>
 
@@ -38,7 +35,12 @@ import { RagResult } from '../services/rag.service';
           </div>
         </div>
 
-        <div class="snippet" [ngClass]="snippetClass(r.source)">{{ r.snippet }}</div>
+        <!-- A TABLE chunk is a markdown table: reflowing it as prose destroys it (#118). -->
+        <div *ngIf="r.chunkType === 'TABLE'" class="snippet snippet-table-wrap" [ngClass]="snippetClass(r.source)">
+          <span class="chunk-badge">Table</span>
+          <pre class="snippet-table">{{ r.snippet }}</pre>
+        </div>
+        <div *ngIf="r.chunkType !== 'TABLE'" class="snippet" [ngClass]="snippetClass(r.source)">{{ r.snippet }}</div>
 
         <div class="result-footer">
           <div class="footer-meta">
@@ -214,6 +216,40 @@ import { RagResult } from '../services/rag.service';
 
     .snippet-alfresco { border-left-color: rgba(120, 190, 32, 0.5); }
     .snippet-nuxeo    { border-left-color: rgba(0, 163, 224, 0.45); }
+    .snippet-generic  { border-left-color: var(--cl-border-strong); }
+
+    /* ---- Table chunks (#118) ---- */
+
+    .snippet-table-wrap {
+      white-space: normal;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .chunk-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
+      background: var(--hy-gray-200);
+      color: var(--hy-gray-700);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .snippet-table {
+      margin: 0;
+      width: 100%;
+      overflow-x: auto;
+      font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      white-space: pre;
+    }
 
     /* ---- Footer ---- */
 
@@ -277,33 +313,17 @@ export class ResultsComponent {
     return `/${parts[0]}/…/${parts[parts.length - 1]}`;
   }
 
-  sourceIcon(source: string | undefined): string {
-    if (source === 'alfresco') return 'storage';
-    if (source === 'nuxeo') return 'folder_open';
-    return 'insert_drive_file';
-  }
+  sourceIcon(source: string | undefined): string { return sourceIcon(source); }
 
-  cardClass(source: string | undefined): string {
-    if (source === 'alfresco') return 'result-alfresco';
-    if (source === 'nuxeo') return 'result-nuxeo';
-    return 'result-generic';
-  }
+  sourceLabel(source: string | undefined): string { return sourceTypeLabel(source); }
 
-  iconClass(source: string | undefined): string {
-    if (source === 'alfresco') return 'result-icon-alfresco';
-    if (source === 'nuxeo') return 'result-icon-nuxeo';
-    return '';
-  }
+  badgeClass(source: string | undefined): string { return sourceClass('source-badge', source); }
 
-  buttonClass(source: string | undefined): string {
-    if (source === 'alfresco') return 'open-button-alfresco';
-    if (source === 'nuxeo') return 'open-button-nuxeo';
-    return '';
-  }
+  cardClass(source: string | undefined): string { return sourceClass('result', source); }
 
-  snippetClass(source: string | undefined): string {
-    if (source === 'alfresco') return 'snippet-alfresco';
-    if (source === 'nuxeo') return 'snippet-nuxeo';
-    return '';
-  }
+  iconClass(source: string | undefined): string { return sourceClass('result-icon', source); }
+
+  buttonClass(source: string | undefined): string { return sourceClass('open-button', source); }
+
+  snippetClass(source: string | undefined): string { return sourceClass('snippet', source); }
 }
