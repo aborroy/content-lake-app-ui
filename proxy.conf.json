@@ -11,6 +11,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/status": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/alfresco": {
     "target": "http://localhost:80",
     "secure": false,

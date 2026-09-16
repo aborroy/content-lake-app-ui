@@ -97,6 +97,27 @@ describe('RagService', () => {
     expect(outcome.results[1].source).toBe('cmis');
   });
 
+  it('namesAHitFromItsNodeIdWhenTheSourceOmitsTheName', async () => {
+    // Measured against a live stack: a connector's hits carry documentId, nodeId and sourceId only, so
+    // every one of them rendered as "(untitled)". The nodeId is a path for any connector that walks one.
+    const pending = firstValueFrom(service.search('invoices'));
+    httpMock.expectOne(SEMANTIC_URL).flush({
+      results: [
+        { rank: 1, score: 0.9, chunkText: 'x',
+          sourceDocument: { nodeId: '/data/connector/quarterly.md', sourceId: 'sample-directory:local' } },
+        { rank: 2, score: 0.8, chunkText: 'y',
+          sourceDocument: { nodeId: 'opaque-id', sourceId: 'cmis:docmgr' } },
+        { rank: 3, score: 0.7, chunkText: 'z',
+          sourceDocument: { nodeId: 'n3', name: 'Real Name.pdf', sourceId: 'alfresco:acs' } }
+      ]
+    });
+
+    const outcome = await pending;
+    expect(outcome.results.map(r => r.title)).toEqual(['quarterly.md', 'opaque-id', 'Real Name.pdf']);
+    // The type comes off the qualified source id when the field is absent.
+    expect(outcome.results.map(r => r.source)).toEqual(['sample-directory', 'cmis', 'alfresco']);
+  });
+
   it('sendsTheSameScopeOnAComparisonSearchAsOnTheMainOne', async () => {
     const headers = new HttpHeaders().set('Authorization', 'Basic dGlja2V0Og==');
     const pending = firstValueFrom(service.searchWithHeaders('invoices', headers, {

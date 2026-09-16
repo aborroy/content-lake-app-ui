@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { resolveStatusUrl } from '../utils/api-paths';
+import { splitSourceKey } from '../utils/source-presentation';
 import { AuthService } from './auth.service';
 
 // ---- API response types (match backend SemanticSearchResponse) ----
@@ -579,9 +580,9 @@ export class RagService {
       results: (resp?.results ?? []).map(item => ({
         rank: item.rank,
         score: item.score,
-        title: item.sourceDocument?.name ?? '(untitled)',
+        title: resolveTitle(item.sourceDocument),
         snippet: item.chunkText ?? '',
-        source: item.sourceDocument?.sourceType,
+        source: resolveSourceType(item.sourceDocument),
         sourceId: item.sourceDocument?.sourceId,
         path: item.sourceDocument?.path,
         openInSourceUrl: item.sourceDocument?.openInSourceUrl,
@@ -594,6 +595,37 @@ export class RagService {
       searchTimeMs: resp?.searchTimeMs ?? 0,
     };
   }
+}
+
+/**
+ * A displayable title for a hit.
+ *
+ * A connector's documents arrive with no `name`, so every one of them rendered as "(untitled)". The
+ * `nodeId` is the connector's own identifier and is a path for any connector that walks one, so its last
+ * segment is the file name. A connector whose ids are not path-like falls back to the id itself, which
+ * still identifies the document.
+ */
+function resolveTitle(doc?: { name?: string; nodeId?: string }): string {
+  const name = doc?.name?.trim();
+  if (name) return name;
+  const nodeId = doc?.nodeId?.trim();
+  if (!nodeId) return '(untitled)';
+  const segments = nodeId.split(/[/\\]+/).filter(Boolean);
+  return segments.length ? segments[segments.length - 1] : nodeId;
+}
+
+/**
+ * The source type of a hit, reading it off the qualified source id when the field is absent.
+ *
+ * Only the Alfresco and Nuxeo adapters put `source_type` on the document, so a hit from a connector
+ * arrives with `sourceDocument` carrying `documentId`, `nodeId` and `sourceId` alone. `sourceId` is the
+ * full `<sourceType>:<sourceId>` value, which is where the type comes from in that case; without this,
+ * every connector-sourced result draws as an unknown source.
+ */
+function resolveSourceType(doc?: { sourceType?: string; sourceId?: string }): string | undefined {
+  if (doc?.sourceType) return doc.sourceType;
+  const derived = splitSourceKey(doc?.sourceId ?? '').sourceType;
+  return derived || undefined;
 }
 
 class StreamHttpError extends Error {
