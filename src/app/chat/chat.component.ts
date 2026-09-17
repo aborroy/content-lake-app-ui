@@ -15,6 +15,7 @@ import {
   ContentSourceCatalogService,
   ContentSourceOption
 } from '../services/content-source-catalog.service';
+import { markdownToPlainText } from '../utils/markdown-plaintext';
 import {
   SourceModifier,
   sourceClass,
@@ -204,8 +205,17 @@ export class DeleteSessionDialogComponent {}
                   <span>{{ msg.error }}</span>
                 </div>
 
-                <div *ngIf="!msg.error && (msg.content || msg.loading)" class="answer-text">
-                  {{ msg.content }}<span *ngIf="msg.loading" class="stream-cursor">|</span>
+                <!--
+                  Streaming shows the flattened mirror; the finished answer is rendered as the markdown
+                  it is. Rendering it raw put literal ** and backticks in front of the reader.
+                -->
+                <div *ngIf="!msg.error && (msg.content || msg.loading)"
+                     class="answer-text"
+                     [class.answer-text--streaming]="msg.loading">
+                  <ng-container *ngIf="msg.loading; else renderedAnswer">{{ msg.streamPreview }}<span class="stream-cursor">|</span></ng-container>
+                  <ng-template #renderedAnswer>
+                    <markdown class="answer-markdown" [data]="msg.content"></markdown>
+                  </ng-template>
                 </div>
 
                 <div *ngIf="!msg.loading && !msg.error && (msg.model || msg.totalMs)" class="msg-meta">
@@ -692,9 +702,43 @@ export class DeleteSessionDialogComponent {}
     .answer-text {
       font-size: 14px;
       line-height: 1.78;
-      white-space: pre-wrap;
       word-break: break-word;
       color: var(--cl-text);
+    }
+
+    /* Newlines are the only structure a streamed mirror has; rendered markdown brings its own. */
+    .answer-text--streaming {
+      white-space: pre-wrap;
+    }
+
+    .answer-markdown :first-child { margin-top: 0; }
+    .answer-markdown :last-child { margin-bottom: 0; }
+
+    .answer-markdown p,
+    .answer-markdown ul,
+    .answer-markdown ol,
+    .answer-markdown pre {
+      margin: 0 0 0.75em;
+    }
+
+    .answer-markdown pre {
+      padding: 0.6em 0.75em;
+      overflow-x: auto;
+      background: var(--cl-surface-alt, #f4f6f8);
+      border-radius: var(--radius-sm, 4px);
+    }
+
+    .answer-markdown table {
+      width: 100%;
+      margin: 0 0 0.75em;
+      border-collapse: collapse;
+    }
+
+    .answer-markdown th,
+    .answer-markdown td {
+      padding: 0.35em 0.6em;
+      text-align: left;
+      border: 1px solid var(--cl-border, #d8dde3);
     }
 
     .stream-cursor {
@@ -1098,7 +1142,10 @@ export class ChatComponent implements OnInit, AfterViewChecked {
         if (event.type === 'token') {
           const buf = (this.streamBuffers.get(assistantMsg.id) ?? '') + event.token;
           this.streamBuffers.set(assistantMsg.id, buf);
+          // The markdown is what gets kept and eventually rendered; the flattened mirror is what shows
+          // until the answer is whole, since partial markdown renders badly and reflows every token.
           assistantMsg.content = buf;
+          assistantMsg.streamPreview = markdownToPlainText(buf);
           this.shouldScroll = this.autoScrollEnabled;
           this.throttlePersist();
           return;
@@ -1262,6 +1309,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
       msg.content = response.answer;
       this.streamBuffers.delete(msg.id);
     }
+    delete msg.streamPreview;
     msg.model = response.model;
     msg.tokenCount = response.tokenCount;
     msg.totalMs = response.totalTimeMs;

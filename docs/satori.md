@@ -10,9 +10,9 @@ This app targets Hyland's [Satori adoption checklist](https://hyland.atlassian.n
 | **Level 1 -- Tokens & Theme** | M3 `define-theme` in `styles.scss` | Ready for Satori token swap |
 | **Level 2 -- Primitives** | Pure Angular Material | No ADF, no Hyland UI |
 | **Level 3 -- App Chrome** | Placeholder | Custom navbar; swap for Satori chrome when available |
-| **Devkit -- Translation** | `ngx-translate` wired | Strings extracted to `src/assets/i18n/en.json` |
+| **Devkit -- Translation** | Not wired | `ngx-translate` was configured and consumed by nothing, so it was removed. Add it back with the first screen that needs a second language |
 | **Devkit -- Auth** | Custom auth service | Evaluate Satori OIDC when available |
-| **Quality gates** | CI workflow placeholder | Blocks `.mat-*` overrides and `!important` |
+| **Quality gates** | `npm run lint:mat-overrides`, run by hand | Greps for `.mat-`, `.mdc-` and `.cdk-` selector overrides. Nothing runs it automatically: `.github/workflows/` is empty. It does **not** check `!important`, and `src/` currently holds 15 of them, four of which are a legitimate `prefers-reduced-motion` block |
 
 ## Remaining Steps
 

@@ -234,6 +234,14 @@ export interface ChatMessage {
   unsupportedClaims?: string[];
   structured?: StructuredAnswer;
   requestId?: string;
+  /**
+   * Plain-text mirror of a partially streamed answer.
+   *
+   * `content` is markdown and is rendered as markdown, but a half-arrived answer is not valid markdown,
+   * so the stream is shown flattened and the markdown renders once the answer is whole. Only set while
+   * `loading` is true.
+   */
+  streamPreview?: string;
 }
 
 // ---- Operational status (#6) ----
@@ -270,23 +278,6 @@ export interface ConnectorInfo {
 export interface ConnectorListing {
   connectors: ConnectorInfo[];
   problems: string[];
-}
-
-// ---- Health ----
-
-export interface RagComponentHealth {
-  status: 'UP' | 'DOWN' | 'DEGRADED';
-  model?: string;
-  vectorDimension?: number;
-  searchTimeMs?: number;
-  error?: string;
-}
-
-export interface RagHealth {
-  status: 'UP' | 'DEGRADED' | 'DOWN';
-  embedding?: RagComponentHealth;
-  hxpr?: RagComponentHealth;
-  llm?: RagComponentHealth;
 }
 
 // ---- View model used by the UI ----
@@ -456,10 +447,6 @@ export class RagService {
       void run(0);
       return () => { cancelled = true; controller.abort(); };
     });
-  }
-
-  getHealth(): Observable<RagHealth> {
-    return this.http.get<RagHealth>(`${environment.ragUrl}/health`);
   }
 
   private streamAuthHeaders(): Record<string, string> {

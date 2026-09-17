@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core
 import { Observable } from 'rxjs';
 import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.service';
 import { ContentSourceType, RagResult, RagService } from '../services/rag.service';
+import { permissionVerdict } from '../utils/permission-verdict';
 import { sourceClass } from '../utils/source-presentation';
 
 export interface CompareResult {
@@ -99,7 +100,7 @@ export interface CompareResult {
                 <strong>{{ diffDetected ? 'Permission filtering detected' : 'Same visible result count' }}</strong>
                 <p>
                   {{ diffDetected
-                    ? (compareResult.username + ' sees ' + (compareResult.count - mainCount) + ' more document(s) for this query.')
+                    ? verdictText
                     : 'Both identities see the same number of results for this search.' }}
                 </p>
               </div>
@@ -377,6 +378,12 @@ export class PermissionCompareComponent implements OnChanges {
 
   get diffDetected(): boolean {
     return this.compareResult !== null && this.compareResult.count !== this.mainCount;
+  }
+
+  /** Which way the difference goes, worded. A bare subtraction here read as "sees -3 more document(s)". */
+  get verdictText(): string {
+    if (!this.compareResult) return '';
+    return permissionVerdict(this.compareResult.username, this.compareResult.count, this.mainCount);
   }
 
   get extraResults(): RagResult[] {

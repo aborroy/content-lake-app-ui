@@ -1,17 +1,12 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { HTTP_INTERCEPTORS, HttpClient, HttpClientModule } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Routes } from '@angular/router';
-
-// ngx-translate — Satori Devkit standardizes on this library.
-// See: https://hyland.atlassian.net/wiki/spaces/HDF/pages/2319058305/Satori+Devkit
-import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
-import { TranslateHttpLoader } from '@ngx-translate/http-loader';
+import { MARKED_OPTIONS, MarkdownModule, MarkedOptions, MarkedRenderer, provideMarkdown } from 'ngx-markdown';
 
 // Angular Material
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,11 +15,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDialogModule } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
 
 // App
 import { AppComponent } from './app.component';
@@ -37,9 +30,16 @@ import { PermissionCompareComponent } from './permission-compare/permission-comp
 import { StatusComponent } from './status/status.component';
 import { AuthHttpInterceptor } from './interceptors/auth.interceptor';
 
-export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
-  return new TranslateHttpLoader(http, './assets/i18n/', '.json');
-}
+/**
+ * Links in a generated answer lead outside the application, so they open in a new tab.
+ *
+ * Positional arguments, not the object form: the `marked` bundled with ngx-markdown 18 still declares
+ * `link(href, title, text)`. The object form compiles against newer majors and fails here.
+ */
+const renderer = new MarkedRenderer();
+renderer.link = (href: string, title: string, text: string): string =>
+  `<a href="${href}" target="_blank" rel="noopener noreferrer" title="${title || ''}">${text}</a>`;
+const markedOptions: MarkedOptions = { renderer };
 
 const routes: Routes = [
   { path: 'login',  component: AuthComponent },
@@ -67,15 +67,6 @@ const routes: Routes = [
     HttpClientModule,
     FormsModule,
     RouterModule.forRoot(routes),
-    TranslateModule.forRoot({
-      defaultLanguage: 'en',
-      loader: {
-        provide: TranslateLoader,
-        useFactory: HttpLoaderFactory,
-        deps: [HttpClient]
-      }
-    }),
-    MatToolbarModule,
     MatButtonModule,
     MatButtonToggleModule,
     MatIconModule,
@@ -84,14 +75,21 @@ const routes: Routes = [
     MatCardModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
-    MatChipsModule,
     MatTooltipModule,
     MatExpansionModule,
     MatDialogModule,
-    MatDividerModule
+    MarkdownModule
   ],
   providers: [
-    { provide: HTTP_INTERCEPTORS, useClass: AuthHttpInterceptor, multi: true }
+    { provide: HTTP_INTERCEPTORS, useClass: AuthHttpInterceptor, multi: true },
+    // Generated answers are markdown. A link in one points outside the app, so it opens in a new tab
+    // rather than replacing the view.
+    provideMarkdown({
+      markedOptions: {
+        provide: MARKED_OPTIONS,
+        useValue: markedOptions
+      }
+    })
   ],
   bootstrap: [AppComponent]
 })

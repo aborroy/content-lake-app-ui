@@ -119,7 +119,6 @@ For local deployment via `content-lake-app-deployment`, this repo is expected at
 ## Project structure
 - `src/` -- Angular source code.
 - `src/app/` -- Application modules, services, components.
-- `src/assets/i18n/` -- Translation files (`ngx-translate`).
 - `src/environments/` -- Environment variables.
 - `src/styles.scss` -- Material 3 theme (Satori-ready) + app design tokens.
 - `angular.json` -- Project config (application builder, Karma test target).
