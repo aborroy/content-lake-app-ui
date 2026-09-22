@@ -36,7 +36,7 @@ import { sourceClass, sourceIcon, sourceTypeLabel, splitSourceKey } from '../uti
       <ng-container *ngIf="status && !loading">
         <div class="status-tiles">
           <div class="status-tile">
-            <span class="tile-label">hxpr</span>
+            <span class="tile-label tile-label-brand">Hyland OpenArch</span>
             <span class="badge" [class.up]="isUp(status.hxprStatus)" [class.down]="!isUp(status.hxprStatus)">
               <mat-icon>{{ isUp(status.hxprStatus) ? 'check_circle' : 'error' }}</mat-icon>
               {{ status.hxprStatus }}
@@ -170,6 +170,16 @@ import { sourceClass, sourceIcon, sourceTypeLabel, splitSourceKey } from '../uti
       text-transform: uppercase;
       letter-spacing: 0.16em;
       color: var(--cl-text-soft);
+    }
+
+    /*
+     * A product name renders as it is written, so it is exempt from the uppercasing the other tile
+     * labels get. The tracking comes down with it: 0.16em is set for short all-caps eyebrow text and
+     * reads as broken spacing on mixed case.
+     */
+    .tile-label-brand {
+      text-transform: none;
+      letter-spacing: 0.02em;
     }
 
     .tile-value {
