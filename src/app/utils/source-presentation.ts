@@ -7,15 +7,16 @@
  * while the decision of which sources are styled lives in one place.
  */
 
-export type SourceModifier = 'alfresco' | 'nuxeo' | 'generic';
+export type SourceModifier = 'alfresco' | 'nuxeo' | 'sharepoint' | 'generic';
 
 /** Source types with dedicated styling. Everything else is 'generic'. */
-const STYLED_TYPES: readonly string[] = ['alfresco', 'nuxeo'];
+const STYLED_TYPES: readonly string[] = ['alfresco', 'nuxeo', 'sharepoint'];
 
 /** Icons per styled type, plus the neutral default. */
 const ICONS: Record<string, string> = {
   alfresco: 'storage',
-  nuxeo: 'folder_open'
+  nuxeo: 'folder_open',
+  sharepoint: 'cloud'
 };
 
 const GENERIC_ICON = 'description';

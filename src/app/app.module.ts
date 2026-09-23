@@ -18,6 +18,7 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDialogModule } from '@angular/material/dialog';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 // App
 import { AppComponent } from './app.component';
@@ -28,6 +29,7 @@ import { ResultsComponent } from './results/results.component';
 import { ChatComponent, DeleteSessionDialogComponent } from './chat/chat.component';
 import { PermissionCompareComponent } from './permission-compare/permission-compare.component';
 import { StatusComponent } from './status/status.component';
+import { SourcesComponent } from './sources/sources.component';
 import { AuthHttpInterceptor } from './interceptors/auth.interceptor';
 
 /**
@@ -46,6 +48,7 @@ const routes: Routes = [
   { path: 'search', component: SearchComponent },
   { path: 'chat',   component: ChatComponent },
   { path: 'status', component: StatusComponent },
+  { path: 'sources', component: SourcesComponent },
   { path: '**', redirectTo: 'login' }
 ];
 
@@ -59,7 +62,8 @@ const routes: Routes = [
     ChatComponent,
     DeleteSessionDialogComponent,
     PermissionCompareComponent,
-    StatusComponent
+    StatusComponent,
+    SourcesComponent
   ],
   imports: [
     BrowserModule,
@@ -78,6 +82,7 @@ const routes: Routes = [
     MatTooltipModule,
     MatExpansionModule,
     MatDialogModule,
+    MatCheckboxModule,
     MarkdownModule
   ],
   providers: [

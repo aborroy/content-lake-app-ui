@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.service';
+import { ConnectorService } from '../services/connector.service';
 
 // Satori App Chrome integration point:
 // When Satori's Application Shell header component is available, replace this
@@ -35,6 +36,13 @@ import { AuthService, AlfrescoSession, NuxeoSession } from '../services/auth.ser
           <a routerLink="/status" routerLinkActive="nav-active" class="nav-link">
             <mat-icon>monitor_heart</mat-icon>
             <span>Status</span>
+          </a>
+          <!-- Only when a connector host is configured. A deployment without the connector profile is a
+               supported shape, so the entry is absent there rather than leading to a screen that cannot
+               work. -->
+          <a *ngIf="sourcesAvailable" routerLink="/sources" routerLinkActive="nav-active" class="nav-link">
+            <mat-icon>account_tree</mat-icon>
+            <span>Sources</span>
           </a>
           <a routerLink="/login" routerLinkActive="nav-active" class="nav-link">
             <mat-icon>manage_accounts</mat-icon>
@@ -368,9 +376,20 @@ export class NavbarComponent {
   alfresco$: Observable<AlfrescoSession | null>;
   nuxeo$: Observable<NuxeoSession | null>;
 
-  constructor(public router: Router, private auth: AuthService) {
+  constructor(public router: Router, private auth: AuthService, private connectors: ConnectorService) {
     this.alfresco$ = auth.alfrescoSession$;
     this.nuxeo$ = auth.nuxeoSession$;
+  }
+
+  /**
+   * Whether this deployment has a connector host at all.
+   *
+   * Read from configuration rather than probed. A probe would put a request on every page load to decide
+   * whether to draw a link, and the answer cannot change without a redeploy: the screen itself reports an
+   * unreachable host, which is the right place for a runtime failure.
+   */
+  get sourcesAvailable(): boolean {
+    return this.connectors.configured;
   }
 
   logoutAlfresco(event: Event): void {

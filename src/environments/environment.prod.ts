@@ -7,9 +7,14 @@ export const environment = {
   alfrescoUrl: resolveRuntimeUrl('__ALFRESCO_URL__', ''),
   nuxeoUrl: resolveRuntimeUrl('__NUXEO_URL__', '/nuxeo'),
   ragUrl: resolveRuntimeUrl('__RAG_URL__', '/api/rag'),
-  // Loaded-connector listing (#9). Empty means the status page omits that panel, which is the default:
-  // /api/connectors lives on an ingester rather than on rag-service, and nothing proxies it, so an
-  // operator has to point this at a reachable ingester. A loopback URL on a remote host resolves back to
-  // the empty fallback, which turns the panel off rather than leaving it failing.
+  // The plugin host, which serves the connector listing, the folder browse, the selection and sync. Empty
+  // turns the Sources screen and its nav entry off, and that is the right default: a deployment without the
+  // connector profile has no host, and a screen that cannot work is worse than one that is absent.
+  //
+  // The deployment sets this to a same-origin path through the proxy, so the browser sends this origin's
+  // credential and needs no cross-origin configuration. A loopback URL on a remote host resolves back to the
+  // empty fallback, which turns the screen off rather than leaving it failing.
+  //
+  // Only this one is configured; the sibling paths are derived from it in utils/api-paths.ts.
   connectorsUrl: resolveRuntimeUrl('__CONNECTORS_URL__', '')
 };

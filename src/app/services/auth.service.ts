@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject, Observable, forkJoin, of } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { resolveConnectorUrls } from '../utils/api-paths';
 
 export interface AlfrescoSession {
   username: string;
@@ -12,6 +13,18 @@ export interface AlfrescoSession {
 export interface NuxeoSession {
   username: string;
   credentials: string;  // base64(user:pass), sent as X-Nuxeo-Authorization: Basic <credentials>
+}
+
+/**
+ * The ingester's sync-admin account, for the connector, browse and selection endpoints.
+ *
+ * Not a content source: this credential does not decide which documents anybody can read. It authenticates
+ * against the plugin host's own default-deny rule, and what it authorises is reading a connector's settings
+ * schema and changing which folders get synced.
+ */
+export interface IngesterSession {
+  username: string;
+  credentials: string;  // base64(user:pass), sent as Authorization: Basic <credentials>
 }
 
 /**
@@ -31,8 +44,17 @@ export class AuthService {
   private alfresco$ = new BehaviorSubject<AlfrescoSession | null>(null);
   private nuxeo$ = new BehaviorSubject<NuxeoSession | null>(null);
 
+  /**
+   * In memory only, for the same reason as the Nuxeo session: it is a reusable base64(user:pass) that
+   * nothing can revoke short of changing the password, so persisting it would outlive the tab that earned
+   * it. A reload ends it and the Sources screen prompts again, which is the correct trade for a credential
+   * that authorises a write.
+   */
+  private ingester$ = new BehaviorSubject<IngesterSession | null>(null);
+
   readonly alfrescoSession$ = this.alfresco$.asObservable();
   readonly nuxeoSession$ = this.nuxeo$.asObservable();
+  readonly ingesterSession$ = this.ingester$.asObservable();
 
   constructor(private http: HttpClient) {
     const alf = sessionStorage.getItem('alfrescoSession');
@@ -115,6 +137,42 @@ export class AuthService {
   /** @deprecated Use getNuxeoSession().credentials, kept for backward compat with rag.service.ts */
   getNuxeoToken(): string | undefined {
     return this.nuxeo$.getValue()?.credentials;
+  }
+
+  // ---- Ingester sync-admin (the connector endpoints) ----
+
+  /**
+   * Validates the sync-admin credential against the connector listing, and keeps it if it works.
+   *
+   * `GET /api/connectors` is the cheapest authenticated read the host offers and returns only descriptors,
+   * never setting values, so using it to check a password cannot leak one. There is no `/me` equivalent here:
+   * the host authenticates a credential but has no notion of a user profile to return.
+   */
+  loginIngester(username: string, password: string): Promise<void> {
+    const urls = resolveConnectorUrls();
+    if (!urls) {
+      return Promise.reject(new Error('No connector host is configured for this deployment.'));
+    }
+    const credentials = btoa(`${username}:${password}`);
+    const headers = new HttpHeaders({ Authorization: `Basic ${credentials}` });
+    return this.http
+      .get(urls.connectors, { headers })
+      .toPromise()
+      .then(() => {
+        this.ingester$.next({ username, credentials });
+      });
+  }
+
+  logoutIngester(): void {
+    this.ingester$.next(null);
+  }
+
+  getIngesterSession(): IngesterSession | null {
+    return this.ingester$.getValue();
+  }
+
+  isIngesterLoggedIn(): boolean {
+    return this.ingester$.getValue() !== null;
   }
 
   // ---- Temporary auth (comparison mode, does NOT store to session) ----
