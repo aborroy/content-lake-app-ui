@@ -8,6 +8,7 @@ import {
   ConnectorSchema,
   ConnectorService,
   SelectionView,
+  SourceAuthState,
   SyncJob
 } from '../services/connector.service';
 import { sourceClass, sourceIcon, sourceTypeLabel } from '../utils/source-presentation';
@@ -142,6 +143,52 @@ interface TreeNode {
             </div>
           </div>
 
+          <!-- How the connector is authenticating. Read-only, and there is deliberately no sign-in flow here:
+               the interactive device-code exchange blocks for up to fifteen minutes and needs a human at a
+               browser, so it runs on the host outside the container. -->
+          <div *ngIf="authState && !loading" class="surface-card sources-panel">
+            <h3>Authentication</h3>
+
+            <!-- The state worth surfacing early, and the whole reason this panel exists: under a delegated
+                 credential a sync stops working when the cached token lapses, and the only other symptom is a
+                 failed job whose log talks about a token cache nobody has heard of. -->
+            <div *ngIf="!authState.usable" class="sources-auth-warn">
+              <mat-icon>error_outline</mat-icon>
+              <div>
+                <strong>This connector cannot authenticate, so a sync will fail.</strong>
+                <p *ngIf="authState.remedy" class="sources-remedy">{{ authState.remedy }}</p>
+              </div>
+            </div>
+
+            <!-- A development shortcut reaching production unremarked is what this flag prevents. -->
+            <div *ngIf="authState.usable && !authState.supportedInProduction" class="sources-auth-note">
+              <mat-icon>info_outline</mat-icon>
+              <span>
+                <strong>{{ authState.mode }}</strong> is a development mode and is not supported for an unattended
+                deployment.
+              </span>
+            </div>
+
+            <table class="sources-table sources-auth-table">
+              <tbody>
+                <tr>
+                  <th>Mode</th>
+                  <td class="sources-mono">{{ authState.mode }}</td>
+                </tr>
+                <tr>
+                  <th>Signed in as</th>
+                  <!-- Absent cleanly, and the two absences are different: a mode with no user has none to
+                       report, which is not the same as one we could not determine. -->
+                  <td>{{ authState.identity || 'no user identity for this mode' }}</td>
+                </tr>
+                <tr>
+                  <th>Token last refreshed</th>
+                  <td>{{ authState.lastRefreshedAt || 'not reported' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <!-- The published settings schema, so what a connector needs is visible without reading a compose
                file. Descriptors only: this endpoint never returns a value, so nothing here can be a secret. -->
           <div *ngIf="schemas && schemas.length > 0 && !loading" class="surface-card sources-panel">
@@ -220,6 +267,20 @@ interface TreeNode {
           <!-- Sync. -->
           <div *ngIf="!loading && listing && listing.connectors.length > 0" class="surface-card sources-panel">
             <h3>Sync</h3>
+
+            <!-- Repeated here rather than left on the panel above, because this is the point of decision: the
+                 whole issue is that a lapsed credential should be visible *before* a sync, not afterwards in a
+                 failed job. The button stays enabled: "usable" is answered from the cache rather than by
+                 attempting a refresh, so it can be a false negative, and a screen that refuses an action on a
+                 diagnostic it cannot fully trust is worse than one that says what will probably happen. -->
+            <div *ngIf="authState && !authState.usable" class="sources-auth-warn">
+              <mat-icon>error_outline</mat-icon>
+              <div>
+                <strong>A sync will fail: this connector cannot authenticate.</strong>
+                <p *ngIf="authState.remedy" class="sources-remedy">{{ authState.remedy }}</p>
+              </div>
+            </div>
+
             <div class="sources-actions">
               <button mat-flat-button color="primary" type="button"
                       (click)="startSync()" [disabled]="syncRunning">
@@ -365,6 +426,17 @@ interface TreeNode {
     .sources-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
     .sources-selected-count { font-size: 12.5px; color: var(--cl-muted, #6b7280); }
 
+    .sources-auth-table { max-width: 460px; }
+    .sources-auth-table th { width: 170px; font-weight: 500; color: var(--cl-muted, #6b7280); }
+
+    .sources-auth-warn, .sources-auth-note {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px;
+    }
+    .sources-auth-warn { background: var(--cl-danger-bg, #fee2e2); color: var(--cl-danger); }
+    .sources-auth-note { background: var(--cl-warn-bg, #fef3c7); }
+    .sources-remedy { margin: 4px 0 0; font-family: var(--cl-mono, monospace); font-size: 12px; }
+
     .sources-job { margin-top: 12px; max-width: 420px; }
     .sources-job-state { font-size: 12px; padding: 2px 9px; border-radius: 10px; background: var(--cl-chip-bg, #eef2ff); }
     .sources-job-state.is-failed { background: var(--cl-danger-bg, #fee2e2); color: var(--cl-danger); }
@@ -379,6 +451,15 @@ export class SourcesComponent implements OnInit, OnDestroy {
 
   listing: ConnectorListing | null = null;
   schemas: ConnectorSchema[] | null = null;
+
+  /**
+   * How the connector is authenticating, or `null` when it reports nothing.
+   *
+   * `null` is the ordinary case and not a gap: a source whose credential is deployment configuration has no
+   * state that varies -- it works, or the container failed to start. The panel is absent for those rather than
+   * showing empty rows.
+   */
+  authState: SourceAuthState | null = null;
   roots: TreeNode[] | null = null;
   rootProblems: string[] = [];
   resolvedFrom = 'connector';
@@ -482,6 +563,7 @@ export class SourcesComponent implements OnInit, OnDestroy {
         this.listing = value;
         this.loading = false;
         this.unauthenticated = false;
+        this.loadAuthState();
         this.loadSchemas();
         this.loadSelectionThenRoots();
       },
@@ -494,6 +576,21 @@ export class SourcesComponent implements OnInit, OnDestroy {
         }
         this.error = this.messageOf(err, 'Could not load the connector listing.');
       }
+    });
+  }
+
+  /**
+   * Reads the host's own summary for the connector's authentication state.
+   *
+   * A failure drops the panel rather than failing the screen. This is diagnostic information: not being able
+   * to read it is a worse outcome on a screen that can still show the tree and start a sync, and the sync's
+   * own failure would report the credential problem anyway. Exactly the degradation the host itself applies
+   * when a connector cannot describe its own credential.
+   */
+  private loadAuthState(): void {
+    this.connectors.connectorStatus()?.subscribe({
+      next: (status) => { this.authState = status.auth ?? null; },
+      error: () => { this.authState = null; }
     });
   }
 

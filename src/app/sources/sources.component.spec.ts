@@ -43,14 +43,24 @@ describe('SourcesComponent', () => {
     sessionStorage.clear();
   });
 
+  const AUTH_OK = {
+    mode: 'device-code', supportedInProduction: false, identity: 'crawler@example.invalid',
+    lastRefreshedAt: null, usable: true, remedy: null
+  };
+
   /** Signs in so the screen is past its credential gate, and drains the load that follows. */
-  function signInAndLoad(roots = [NODE('f-public'), NODE('f-orglink')], selected: string[] = []): void {
+  function signInAndLoad(roots = [NODE('f-public'), NODE('f-orglink')], selected: string[] = [],
+                         authState: unknown = AUTH_OK): void {
     void auth.loginIngester('svc', 'pw');
     httpMock.expectOne('/api/connectors').flush({ connectors: [], problems: [] });
 
     component.refresh();
     httpMock.expectOne('/api/connectors').flush({
       connectors: [{ sourceType: 'sharepoint', displayName: 'SharePoint Online connector' }], problems: []
+    });
+    httpMock.expectOne('/api/connector-status').flush({
+      sourceType: 'sharepoint', state: 'IDLE', jobId: null, startedAt: null, completedAt: null,
+      nodesDiscovered: 0, nodesIndexed: 0, nodesSkipped: 0, nodesFailed: 0, auth: authState
     });
     httpMock.expectOne('/api/connectors/schema').flush([]);
     httpMock.expectOne('/api/selection').flush({
@@ -230,6 +240,77 @@ describe('SourcesComponent', () => {
 
       expect(component.roots!.length).toBe(1);
       expect([...component.selected]).toEqual([]);
+    });
+  });
+
+  describe('the authentication panel', () => {
+
+    it('shows mode and identity for a connector that reports them', () => {
+      signInAndLoad();
+
+      expect(component.authState!.mode).toBe('device-code');
+      expect(component.authState!.identity).toBe('crawler@example.invalid');
+      expect(component.authState!.usable).toBe(true);
+    });
+
+    /**
+     * Absent cleanly. A source whose credential is deployment configuration has no state that varies, so the
+     * panel is simply not rendered rather than showing empty rows.
+     */
+    it('is absent for a connector that reports no auth state', () => {
+      signInAndLoad([NODE('f-public')], [], null);
+
+      expect(component.authState).toBeNull();
+    });
+
+    /**
+     * The whole point of the issue: a lapsed credential has to be visible before a sync, not afterwards as a
+     * failed job whose log talks about a token cache nobody has heard of.
+     */
+    it('carries the remedy when the credential cannot be used', () => {
+      signInAndLoad([NODE('f-public')], [], {
+        mode: 'device-code', supportedInProduction: false, identity: null, lastRefreshedAt: null,
+        usable: false, remedy: 'Sign in again on the host with scripts/sharepoint-device-login.sh, then restart this service.'
+      });
+
+      expect(component.authState!.usable).toBe(false);
+      expect(component.authState!.remedy).toContain('sharepoint-device-login.sh');
+    });
+
+    /**
+     * Nothing rendered here may be a credential or point at one.
+     *
+     * The backend is what guarantees it, but asserting over the whole record means a field added there later
+     * is covered by this test without anyone remembering to extend it -- and this screen is reachable from a
+     * browser, so the cache path in particular must not arrive.
+     */
+    it('renders nothing that is or locates a credential', () => {
+      signInAndLoad([NODE('f-public')], [], {
+        mode: 'device-code', supportedInProduction: false, identity: null, lastRefreshedAt: null,
+        usable: false, remedy: 'Sign in again on the host with scripts/sharepoint-device-login.sh, then restart this service.'
+      });
+
+      const rendered = JSON.stringify(component.authState);
+      expect(rendered).not.toMatch(/msal|token-cache|\/var\/lib|refresh_token|client-secret/i);
+    });
+
+    it('drops the panel rather than failing the screen when the status cannot be read', () => {
+      void auth.loginIngester('svc', 'pw');
+      httpMock.expectOne('/api/connectors').flush({ connectors: [], problems: [] });
+
+      component.refresh();
+      httpMock.expectOne('/api/connectors').flush({ connectors: [], problems: [] });
+      httpMock.expectOne('/api/connector-status').flush('', { status: 500, statusText: 'Server Error' });
+      httpMock.expectOne('/api/connectors/schema').flush([]);
+      httpMock.expectOne('/api/selection').flush({ sourceType: 'sharepoint', qualifiedSourceId: 'x',
+        rootNodeIds: [], chosen: false });
+      httpMock.expectOne('/api/browse/roots').flush({ sourceType: 'sharepoint', resolvedFrom: 'connector',
+        roots: [NODE('f-public')], problems: [] });
+
+      // Diagnostic information: not having it is a worse outcome on a screen that can still show the tree.
+      expect(component.authState).toBeNull();
+      expect(component.error).toBeNull();
+      expect(component.roots!.length).toBe(1);
     });
   });
 
