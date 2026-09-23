@@ -16,6 +16,31 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/connectors": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/connector-status": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/browse": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/selection": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/sync": {
+    "target": "http://localhost:80",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/alfresco": {
     "target": "http://localhost:80",
     "secure": false,
