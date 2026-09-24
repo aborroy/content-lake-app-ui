@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ConnectorListing, RagService, StatusResponse } from '../services/rag.service';
+import { ConnectorHostStatus, ConnectorService } from '../services/connector.service';
 import { environment } from '../../environments/environment';
 import { sourceClass, sourceIcon, sourceTypeLabel, splitSourceKey } from '../utils/source-presentation';
 
@@ -122,6 +123,35 @@ import { sourceClass, sourceIcon, sourceTypeLabel, splitSourceKey } from '../uti
             </ul>
           </div>
         </ng-container>
+
+        <!-- Auth state for sources with credentials that can lapse -->
+        <div *ngIf="ingesterStatus?.auth" class="auth-state-panel">
+          <h4>Authentication</h4>
+          <div class="auth-state-content">
+            <div class="auth-field">
+              <span class="auth-label">Mode</span>
+              <span class="auth-value">
+                {{ ingesterStatus.auth.mode }}
+                <span *ngIf="!ingesterStatus.auth.supportedInProduction" class="dev-mode-badge">development only</span>
+              </span>
+            </div>
+            <div *ngIf="ingesterStatus.auth.identity" class="auth-field">
+              <span class="auth-label">Identity</span>
+              <span class="auth-value mono">{{ ingesterStatus.auth.identity }}</span>
+            </div>
+            <div class="auth-field">
+              <span class="auth-label">Status</span>
+              <span class="badge" [class.up]="ingesterStatus.auth.usable" [class.down]="!ingesterStatus.auth.usable">
+                <mat-icon>{{ ingesterStatus.auth.usable ? 'check_circle' : 'error' }}</mat-icon>
+                {{ ingesterStatus.auth.usable ? 'Usable' : 'Needs attention' }}
+              </span>
+            </div>
+            <div *ngIf="!ingesterStatus.auth.usable && ingesterStatus.auth.remedy" class="auth-remedy">
+              <mat-icon>info</mat-icon>
+              <span>{{ ingesterStatus.auth.remedy }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -235,6 +265,73 @@ import { sourceClass, sourceIcon, sourceTypeLabel, splitSourceKey } from '../uti
     .connector-problems h4 mat-icon { font-size: 16px; width: 16px; height: 16px; }
 
     .connector-problems ul { margin: 0; padding-left: 20px; font-size: 12.5px; }
+
+    .auth-state-panel {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--cl-border);
+      border-radius: var(--radius-md);
+      background: var(--cl-surface-alt, var(--cl-surface));
+    }
+
+    .auth-state-panel h4 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--cl-text);
+    }
+
+    .auth-state-content { display: flex; flex-direction: column; gap: 8px; }
+
+    .auth-field {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .auth-label {
+      min-width: 80px;
+      font-weight: 600;
+      color: var(--cl-text-soft);
+    }
+
+    .auth-value { color: var(--cl-text); }
+
+    .dev-mode-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(255, 152, 0, 0.1);
+      color: #f57c00;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .auth-remedy {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-top: 4px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      background: rgba(33, 150, 243, 0.08);
+      color: var(--cl-text);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .auth-remedy mat-icon {
+      flex-shrink: 0;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      color: #1976d2;
+    }
   `]
 })
 export class StatusComponent implements OnInit {
@@ -246,7 +343,12 @@ export class StatusComponent implements OnInit {
   connectorsLoading = false;
   connectorsError: string | null = null;
 
-  constructor(private rag: RagService) {}
+  ingesterStatus: ConnectorHostStatus | null = null;
+
+  constructor(
+    private rag: RagService,
+    private connector: ConnectorService
+  ) {}
 
   ngOnInit(): void {
     this.refresh();
@@ -320,6 +422,21 @@ export class StatusComponent implements OnInit {
         this.connectorsLoading = false;
       }
     });
+
+    // Fetch ingester status including auth state
+    const statusRequest = this.connector.connectorStatus();
+    if (statusRequest) {
+      statusRequest.subscribe({
+        next: (status) => {
+          this.ingesterStatus = status;
+        },
+        error: () => {
+          // Failures are silent: auth state is supplementary, and the connector listing already
+          // shows what loaded. An ingester that reports connectors but not status is still usable.
+          this.ingesterStatus = null;
+        }
+      });
+    }
   }
 }
 
